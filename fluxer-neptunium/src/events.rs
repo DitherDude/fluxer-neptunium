@@ -46,7 +46,7 @@ macro_rules! call_event_listeners {
 #[expect(unused)]
 pub(super) enum Event {
     Ready(Box<ReadyEventData>),
-    MessageCreate(MessageCreateEventData),
+    MessageCreate(Box<MessageCreateEventData>),
     GuildDelete(GuildDeleteEventData),
     GuildCreate(GuildCreateEventData),
 }
@@ -74,11 +74,11 @@ impl EventBus {
             self;
             event;
             context;
-            MessageCreate => message_create;
             GuildCreate => guild_create;
             GuildDelete => guild_delete;
             !custom
             Ready => ready (|data: Box<ReadyEventData>| { *data });
+            MessageCreate => message_create (|data: Box<MessageCreateEventData>| { *data });
         }
     }
 }

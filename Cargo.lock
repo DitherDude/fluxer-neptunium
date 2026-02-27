@@ -339,29 +339,15 @@ dependencies = [
 ]
 
 [[package]]
-name = "fluxer-api"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53d6330c06b3822c0b335c72e8c5f063c855022f5b76cc2389e165e2e4396633"
-dependencies = [
- "reqwest",
- "serde",
- "serde_json",
- "serde_repr",
- "serde_with",
- "url",
-]
-
-[[package]]
 name = "fluxer-gateway"
 version = "0.1.0"
 dependencies = [
  "bitflags",
- "fluxer-api 1.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "futures-util",
  "serde",
  "serde_json",
  "serde_repr",
+ "serde_with",
  "time",
  "tokio",
  "tokio-tungstenite",

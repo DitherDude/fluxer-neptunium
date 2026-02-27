@@ -97,7 +97,14 @@ impl<'a> GatewayClient<'a> {
     ) -> Result<GatewayEvent<IncomingGatewayEventData, IncomingGatewayOpCode>, GatewayClientError>
     {
         let payload = Self::next_payload(stream).await?;
-        tracing::event!(Level::TRACE, "Received message from gateway: {:?}", payload);
+        if matches!(
+            payload.op,
+            IncomingGatewayOpCode::HeartbeatAck | IncomingGatewayOpCode::Heartbeat
+        ) {
+            tracing::trace!("[heartbeat] Received message from gateway: {:?}", payload);
+        } else {
+            tracing::debug!("Received message from gateway: {:?}", payload);
+        }
         Ok(match payload.op {
             IncomingGatewayOpCode::Hello => {
                 let Some(d) = payload.d.clone() else {
@@ -143,6 +150,9 @@ impl<'a> GatewayClient<'a> {
                 payload,
             },
             IncomingGatewayOpCode::Dispatch => {
+                if let Some(t) = &payload.t {
+                    tracing::trace!(%t, "Received dispatch");
+                }
                 let dispatch_event: DispatchEvent = payload.clone().try_into()?;
                 GatewayEvent {
                     data: IncomingGatewayEventData::Dispatch(Box::new(dispatch_event)),

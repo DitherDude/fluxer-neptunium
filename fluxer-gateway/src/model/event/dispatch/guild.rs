@@ -1,11 +1,15 @@
-use fluxer_api::models::{ChannelResponse, GuildMemberResponse};
+// use fluxer_api::models::{ChannelResponse, GuildMemberResponse};
 use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use time::OffsetDateTime;
 
 use crate::{
     __fluxer_gateway_bitflags_as_number,
-    model::{event::dispatch::session::PresenceResponse, snowflake::Snowflake},
+    model::{
+        event::dispatch::session::PresenceResponse,
+        object::{channel::ChannelResponse, user::GuildMemberResponse},
+        snowflake::Snowflake,
+    },
 };
 
 #[derive(Deserialize, Serialize, Clone, Debug)]

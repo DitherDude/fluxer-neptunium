@@ -1,9 +1,10 @@
-use fluxer_gateway::{
-    fluxer_api::models::UserPrivateResponse,
-    model::{
-        event::dispatch::session::{GuildReadyResponse, ReadyDispatchData},
-        snowflake::Snowflake,
+use fluxer_gateway::model::{
+    event::dispatch::{
+        channel::MessageCreateDispatchData,
+        session::{GuildReadyResponse, ReadyDispatchData},
     },
+    object::user::UserPrivateResponse,
+    snowflake::Snowflake,
 };
 
 #[derive(Clone, Debug)]
@@ -24,7 +25,9 @@ impl ReadyEventData {
 }
 
 #[derive(Clone, Debug)]
-pub struct MessageCreateEventData {}
+pub struct MessageCreateEventData {
+    pub dispatch_data: MessageCreateDispatchData,
+}
 
 #[derive(Clone, Debug)]
 pub struct GuildDeleteEventData {

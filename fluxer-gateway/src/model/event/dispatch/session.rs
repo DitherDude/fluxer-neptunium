@@ -1,12 +1,18 @@
-use fluxer_api::models::{
-    ChannelResponse, CustomStatusResponse, FavoriteMemeResponse, UserGuildSettingsResponse,
-    UserPartialResponse, UserPrivateResponse, UserSettingsResponse,
-};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use time::OffsetDateTime;
 
-use crate::model::snowflake::Snowflake;
+use crate::model::{
+    object::{
+        channel::ChannelResponse,
+        gateway::CustomStatusResponse,
+        user::{
+            FavoriteMemeResponse, UserGuildSettingsResponse, UserPartialResponse,
+            UserPrivateResponse, UserSettingsResponse,
+        },
+    },
+    snowflake::Snowflake,
+};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct GuildReadyResponse {

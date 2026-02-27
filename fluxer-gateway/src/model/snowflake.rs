@@ -2,7 +2,7 @@ use std::num::ParseIntError;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 #[serde(transparent)]
 pub struct Snowflake(String);
 

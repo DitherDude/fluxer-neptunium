@@ -25,7 +25,7 @@ pub mod events;
 use crate::{
     error::NeptuniumErrorKind,
     events::{
-        Event, EventBus, EventListener,
+        Event, EventBus, EventListener, MessageCreateEventData,
         data::{GuildDeleteEventData, ReadyEventData},
     },
 };
@@ -36,6 +36,7 @@ pub enum EventType {
 }
 
 enum ClientMessage {
+    #[expect(unused)]
     SendMessage(OutgoingGatewayEventData),
     SendHeartbeat,
     Received(GatewayEvent<IncomingGatewayEventData, IncomingGatewayOpCode>),
@@ -74,9 +75,14 @@ impl<'a> Client<'a> {
         }
     }
 
+    /// Start the client. Waits for events from the gateway and calls the registered event handlers.
+    /// This function blocks forever unless a fatal error occurs.
+    /// # Errors
+    /// Returns an error if a fatal error occurs, such as the connection closing or the gateway sending
+    /// an unexpected event.
     pub async fn start(mut self) -> Result<(), crate::error::Error> {
         tracing::event!(Level::DEBUG, "Starting client");
-        let (tx, mut rx) = mpsc::unbounded_channel::<ClientMessage>();
+        let (tx, rx) = mpsc::unbounded_channel::<ClientMessage>();
         let (mut write, mut read) = self
             .gateway_client
             .establish_connection()
@@ -93,7 +99,7 @@ impl<'a> Client<'a> {
 
         let heartbeat_interval = hello_data.heartbeat_interval;
 
-        let mut event_bus = self.event_bus.take().unwrap_or(EventBus::new());
+        let event_bus = self.event_bus.take().unwrap_or(EventBus::new());
 
         let client = Arc::new(tokio::sync::Mutex::new(self));
 
@@ -162,47 +168,69 @@ impl<'a> Client<'a> {
                         return Err(e.into());
                     }
                 }
-                ClientMessage::Received(event) => match event.data {
-                    IncomingGatewayEventData::HeartbeatAck => {}
-                    IncomingGatewayEventData::Hello(_) => {
-                        return Err(Error::new(NeptuniumErrorKind::UnexpectedEvent(event)));
-                    }
-                    IncomingGatewayEventData::Heartbeat => {
-                        let _ = tx.send(ClientMessage::SendHeartbeat);
-                    }
-                    IncomingGatewayEventData::InvalidSession(data) => {
-                        if !data.resumable {
-                            return Err(Error::new(NeptuniumErrorKind::SessionInvalidated));
+                ClientMessage::Received(event) => {
+                    let event_sequence_number = event.payload.s;
+                    match event.data {
+                        IncomingGatewayEventData::HeartbeatAck => {}
+                        IncomingGatewayEventData::Hello(_) => {
+                            return Err(Error::new(NeptuniumErrorKind::UnexpectedEvent(event)));
                         }
+                        IncomingGatewayEventData::Heartbeat => {
+                            let _ = tx.send(ClientMessage::SendHeartbeat);
+                        }
+                        IncomingGatewayEventData::InvalidSession(data) => {
+                            if !data.resumable {
+                                return Err(Error::new(NeptuniumErrorKind::SessionInvalidated));
+                            }
 
-                        todo!("resuming/reconnecting");
+                            todo!("resuming/reconnecting");
+                        }
+                        IncomingGatewayEventData::Reconnect => todo!("reconnecting"),
+                        IncomingGatewayEventData::Dispatch(event) => {
+                            tracing::trace!("Event sequence number: {:?}", event_sequence_number);
+                            if let Some(last_sequence_number) = event_sequence_number {
+                                client.lock().await.last_sequence_number =
+                                    Some(last_sequence_number);
+                            }
+                            match *event {
+                                DispatchEvent::Ready(data) => {
+                                    event_bus
+                                        .emit(
+                                            Event::Ready(Box::new(ReadyEventData {
+                                                dispatch_data: *data,
+                                            })),
+                                            Arc::clone(&client),
+                                        )
+                                        .await;
+                                }
+                                DispatchEvent::GuildDelete(data) => {
+                                    event_bus
+                                        .emit(
+                                            Event::GuildDelete(GuildDeleteEventData {
+                                                id: data.id,
+                                                unavailable: data.unavailable.unwrap_or(false),
+                                            }),
+                                            Arc::clone(&client),
+                                        )
+                                        .await;
+                                }
+                                DispatchEvent::GuildCreate(_data) => { /* TODO */ }
+                                DispatchEvent::MessageCreate(data) => {
+                                    event_bus
+                                        .emit(
+                                            Event::MessageCreate(Box::new(
+                                                MessageCreateEventData {
+                                                    dispatch_data: *data,
+                                                },
+                                            )),
+                                            Arc::clone(&client),
+                                        )
+                                        .await;
+                                }
+                            }
+                        }
                     }
-                    IncomingGatewayEventData::Reconnect => todo!("reconnecting"),
-                    IncomingGatewayEventData::Dispatch(event) => match *event {
-                        DispatchEvent::Ready(data) => {
-                            event_bus
-                                .emit(
-                                    Event::Ready(Box::new(ReadyEventData {
-                                        dispatch_data: *data,
-                                    })),
-                                    Arc::clone(&client),
-                                )
-                                .await;
-                        }
-                        DispatchEvent::GuildDelete(data) => {
-                            event_bus
-                                .emit(
-                                    Event::GuildDelete(GuildDeleteEventData {
-                                        id: data.id,
-                                        unavailable: data.unavailable.unwrap_or(false),
-                                    }),
-                                    Arc::clone(&client),
-                                )
-                                .await;
-                        }
-                        DispatchEvent::GuildCreate(data) => todo!(),
-                    },
-                },
+                }
             }
         }
 
