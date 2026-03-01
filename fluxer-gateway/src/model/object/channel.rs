@@ -19,6 +19,7 @@ pub struct ChannelResponse {
     #[serde(skip_serializing_if = "Option::is_none")]
     last_message_id: Option<Snowflake>,
     #[serde(
+        default,
         skip_serializing_if = "Option::is_none",
         with = "time::serde::iso8601::option"
     )]

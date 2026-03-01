@@ -26,7 +26,7 @@ pub trait EventListener {
 
     #[expect(unused)]
     #[inline]
-    async fn message_create(&mut self, ctx: &Context, data: MessageCreateEventData) {}
+    async fn message_create(&mut self, ctx: &Context, data: MessageCreateEventData<'_>) {}
 
     #[expect(unused)]
     #[inline]

@@ -10,6 +10,7 @@ pub enum NeptuniumErrorKind {
     GatewayClientError(GatewayClientError),
     UnexpectedEvent(GatewayEvent<IncomingGatewayEventData, IncomingGatewayOpCode>),
     SessionInvalidated,
+    InvalidInternalState,
 }
 
 #[derive(Debug)]
@@ -29,6 +30,7 @@ impl Display for Error {
             NeptuniumErrorKind::SessionInvalidated => f.write_str(
                 "Session invalidated and the gateway reported that reconnecting is not possible",
             ),
+            NeptuniumErrorKind::InvalidInternalState => f.write_str("Invalid internal state"),
         }
     }
 }

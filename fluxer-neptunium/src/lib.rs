@@ -11,7 +11,7 @@ use fluxer_gateway::{
 };
 use tokio::sync::{
     Mutex,
-    mpsc::{self, UnboundedReceiver, UnboundedSender},
+    mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel},
 };
 
 pub use async_trait::async_trait;
@@ -19,16 +19,22 @@ pub use error::Error;
 pub use fluxer_gateway::client::client_config::GatewayIntents;
 use tracing::Level;
 
+mod api;
 mod error;
 pub mod events;
 
 use crate::{
+    api::ApiClient,
     error::NeptuniumErrorKind,
     events::{
         Event, EventBus, EventListener, MessageCreateEventData,
         data::{GuildDeleteEventData, ReadyEventData},
     },
 };
+
+const DEFAULT_API_URL: &str = "https://api.fluxer.app/v1";
+const USER_AGENT: &str = "Fluxer-Neptunium";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum EventType {
@@ -45,21 +51,25 @@ enum ClientMessage {
 pub struct Client<'a> {
     #[expect(clippy::struct_field_names)]
     gateway_client: GatewayClient<'a>,
-    // // tx and rx should be moved outside of the Client struct to avoid
-    // // having to Mutex::lock() the client each time we want to
-    // // clone tx or access rx
-    // tx: UnboundedSender<ClientMessage>,
-    // rx: UnboundedReceiver<ClientMessage>,
+    #[expect(clippy::struct_field_names)]
+    pub(crate) api_client: ApiClient<'a>,
     last_sequence_number: Option<u64>,
     event_bus: Option<EventBus>,
+    tx: UnboundedSender<ClientMessage>,
+    rx: Option<UnboundedReceiver<ClientMessage>>,
 }
 
 impl<'a> From<GatewayClient<'a>> for Client<'a> {
     fn from(value: GatewayClient<'a>) -> Self {
+        let token = value.config.token.to_string();
+        let (tx, rx) = unbounded_channel();
         Self {
             gateway_client: value,
             last_sequence_number: None,
             event_bus: None,
+            tx,
+            rx: Some(rx),
+            api_client: Self::create_api_client(token),
         }
     }
 }
@@ -68,11 +78,28 @@ impl<'a> Client<'a> {
     /// Construct a new client given a `token` and the `GatewayIntents`
     #[must_use]
     pub fn new(token: &'a str, intents: GatewayIntents) -> Self {
+        let token_clone = token.to_string();
+        let (tx, rx) = unbounded_channel();
         Self {
             gateway_client: GatewayClient::new(GatewayClientConfiguration::new(token, intents)),
             last_sequence_number: None,
             event_bus: None,
+            tx,
+            rx: Some(rx),
+            api_client: Self::create_api_client(token_clone),
         }
+    }
+
+    /// Set the API base path.
+    /// The default is `https://api.fluxer.app/v1`.
+    pub fn set_api_base_path(&mut self, base: &'a str) {
+        self.api_client.base_path = base;
+    }
+
+    /// Set the gateway URL.
+    /// The default is `wss://gateway.fluxer.app`.
+    pub fn set_gateway_url(&mut self, url: &'a str) {
+        self.gateway_client.config.gateway_url = url;
     }
 
     /// Start the client. Waits for events from the gateway and calls the registered event handlers.
@@ -81,8 +108,15 @@ impl<'a> Client<'a> {
     /// Returns an error if a fatal error occurs, such as the connection closing or the gateway sending
     /// an unexpected event.
     pub async fn start(mut self) -> Result<(), crate::error::Error> {
-        tracing::event!(Level::DEBUG, "Starting client");
-        let (tx, rx) = mpsc::unbounded_channel::<ClientMessage>();
+        tracing::event!(
+            Level::DEBUG,
+            "Starting fluxer neptunium client (version: {})",
+            VERSION
+        );
+        let tx = self.tx.clone();
+        let Some(rx) = self.rx.take() else {
+            return Err(Error::new(NeptuniumErrorKind::InvalidInternalState));
+        };
         let (mut write, mut read) = self
             .gateway_client
             .establish_connection()
@@ -123,14 +157,21 @@ impl<'a> Client<'a> {
         let cloned_tx = tx.clone();
         tokio::spawn(async move {
             loop {
-                let Ok(next_event) = GatewayClient::next_event(&mut read).await else {
-                    // TODO: Maybe check for which error happened
-                    break;
+                let next_event = match GatewayClient::next_event(&mut read).await {
+                    Ok(event) => event,
+                    Err(e) => {
+                        tracing::warn!("Gateway client error: {}", e);
+                        break;
+                    }
                 };
                 if cloned_tx.send(ClientMessage::Received(next_event)).is_err() {
+                    tracing::debug!(
+                        "Message receiver thread is stopping due to channel being closed."
+                    );
                     break;
                 }
             }
+            tracing::warn!("Message receiver thread is stopping.");
         });
 
         if let Err(e) = client
@@ -221,6 +262,7 @@ impl<'a> Client<'a> {
                                             Event::MessageCreate(Box::new(
                                                 MessageCreateEventData {
                                                     dispatch_data: *data,
+                                                    client: Arc::clone(&client).into(),
                                                 },
                                             )),
                                             Arc::clone(&client),
@@ -241,5 +283,21 @@ impl<'a> Client<'a> {
         self.event_bus
             .get_or_insert(EventBus::new())
             .register(Box::new(listener) as Box<dyn EventListener + Send>);
+    }
+
+    // pub(crate) fn send_client_message(
+    //     &self,
+    //     message: ClientMessage,
+    // ) -> Result<(), tokio::sync::mpsc::error::SendError<ClientMessage>> {
+    //     self.tx.send(message)
+    // }
+
+    fn create_api_client(token: String) -> ApiClient<'a> {
+        ApiClient {
+            base_path: DEFAULT_API_URL,
+            user_agent: format!("{USER_AGENT}/{VERSION}"),
+            token: token.into(),
+            reqwest_client: reqwest::Client::new(),
+        }
     }
 }

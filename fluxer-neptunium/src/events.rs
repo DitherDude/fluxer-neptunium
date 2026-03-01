@@ -44,9 +44,9 @@ macro_rules! call_event_listeners {
 }
 
 #[expect(unused)]
-pub(super) enum Event {
+pub(super) enum Event<'a> {
     Ready(Box<ReadyEventData>),
-    MessageCreate(Box<MessageCreateEventData>),
+    MessageCreate(Box<MessageCreateEventData<'a>>),
     GuildDelete(GuildDeleteEventData),
     GuildCreate(GuildCreateEventData),
 }
@@ -66,7 +66,7 @@ impl EventBus {
         self.listeners.push(listener);
     }
 
-    pub async fn emit(&mut self, event: Event, client: Arc<Mutex<Client<'_>>>) {
+    pub async fn emit<'a>(&mut self, event: Event<'a>, client: Arc<Mutex<Client<'_>>>) {
         let context = listener::Context {
             client: Arc::clone(&client),
         };
@@ -78,7 +78,7 @@ impl EventBus {
             GuildDelete => guild_delete;
             !custom
             Ready => ready (|data: Box<ReadyEventData>| { *data });
-            MessageCreate => message_create (|data: Box<MessageCreateEventData>| { *data });
+            MessageCreate => message_create (|data: Box<MessageCreateEventData<'a>>| { *data });
         }
     }
 }

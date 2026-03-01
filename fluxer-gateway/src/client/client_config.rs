@@ -2,6 +2,7 @@ use crate::__fluxer_gateway_bitflags_as_number;
 
 const DEFAULT_GATEWAY_URL: &str = "wss://gateway.fluxer.app";
 const DEFAULT_GATEWAY_VERSION: GatewayVersion = 1;
+// const DEFAULT_GATEWAY_VERSION: GatewayVersion = 10;
 
 pub type GatewayVersion = i32;
 

@@ -32,7 +32,7 @@ pub type GatewayConnectionWriteHalf =
 pub type GatewayConnectionType = (GatewayConnectionWriteHalf, GatewayConnectionReadHalf);
 
 pub struct GatewayClient<'a> {
-    config: GatewayClientConfiguration<'a>,
+    pub config: GatewayClientConfiguration<'a>,
 }
 
 impl<'a> GatewayClient<'a> {
