@@ -32,7 +32,15 @@ use crate::{
     },
 };
 
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+const VERSION: &str = unwrap_or(option_env!("CARGO_PKG_VERSION"), "0.0.0");
+
+const fn unwrap_or(option: Option<&'static str>, default: &'static str) -> &'static str {
+    if let Some(value) = option {
+        value
+    } else {
+        default
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum EventType {
