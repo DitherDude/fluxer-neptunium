@@ -39,7 +39,7 @@ impl<'de> Deserialize<'de> for GatewayEvent {
 
         Ok(match op {
             OpCode::Dispatch => {
-                Self::Dispatch(serde_json::from_value(d).map_err(de::Error::custom)?)
+                Self::Dispatch(serde_json::from_value(raw).map_err(de::Error::custom)?)
             }
             OpCode::Hello => Self::Hello(serde_json::from_value(d).map_err(de::Error::custom)?),
             OpCode::Heartbeat => Self::Heartbeat,

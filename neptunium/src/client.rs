@@ -78,19 +78,29 @@ impl Client {
 
         let last_sequence_number = None;
 
-        while let Some(message) = rx.recv().await {
-            match message {
-                ClientMessage::Heartbeat => {
-                    tracing::debug!("Sending heartbeat.");
-                    self.shard
-                        .send_gateway_message(OutgoingGatewayMessage::Heartbeat(Heartbeat {
-                            last_sequence_number,
-                        }))
-                        .await?;
+        loop {
+            tokio::select! {
+                message = rx.recv() => {
+                    let Some(message) = message else {
+                        tracing::debug!("Channel closed, exiting.");
+                        return Ok(());
+                    };
+                    match message {
+                        ClientMessage::Heartbeat => {
+                            tracing::debug!("Sending heartbeat.");
+                            self.shard
+                                .send_gateway_message(OutgoingGatewayMessage::Heartbeat(Heartbeat {
+                                    last_sequence_number,
+                                }))
+                                .await?;
+                        }
+                    }
+                },
+                message = self.shard.next_event() => {
+                    let message = message?;
+                    tracing::trace!("Received message: {message:?}");
                 }
             }
         }
-
-        Ok(())
     }
 }
