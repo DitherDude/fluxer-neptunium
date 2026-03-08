@@ -12,7 +12,7 @@ use crate::{
     },
     misc::HexColor32,
     time::{
-        duration::{Duration, representation::UnixSeconds},
+        duration::{Duration, representation::Seconds},
         timestamp::{Timestamp, representations::Iso8601},
     },
 };
@@ -356,7 +356,7 @@ pub struct FavoriteMeme {
 #[expect(clippy::struct_excessive_bools)]
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct UserSettings {
-    pub afk_timeout: Duration<UnixSeconds>,
+    pub afk_timeout: Duration<Seconds>,
     pub animate_emoji: bool,
     pub animate_stickers: StickerAnimationOptions,
     pub bot_default_guilds_restricted: bool,
@@ -400,7 +400,7 @@ pub enum UserNotificationSettings {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserGuildSettingsMuteConfig {
     pub end_time: Option<Timestamp<Iso8601>>,
-    pub selected_time_window: crate::time::duration::Duration<UnixSeconds>,
+    pub selected_time_window: crate::time::duration::Duration<Seconds>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

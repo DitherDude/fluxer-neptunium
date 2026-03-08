@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     guild::permissions::Permissions,
@@ -14,6 +15,8 @@ use crate::{
     user::UserPartial,
 };
 
+pub mod message;
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PermissionOverwrite {
     allow: Permissions,
@@ -23,6 +26,19 @@ pub struct PermissionOverwrite {
     /// The type of entity this overwrite applies to. Must be either 0 or 1.
     #[serde(rename = "type")]
     r#type: u8,
+}
+
+// https://github.com/fluxerapp/fluxer/blob/03813bbe17db008452f0f1be3090a7d2970a5447/packages/constants/src/ChannelConstants.tsx#L22
+#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
+#[repr(u16)]
+pub enum ChannelType {
+    GuildText = 0,
+    Dm = 1,
+    GuildVoice = 2,
+    GroupDm = 3,
+    GuildCategory = 4,
+    GuildLink = 998,
+    DmPersonalNotes = 999,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

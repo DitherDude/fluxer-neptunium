@@ -97,7 +97,13 @@ impl Client {
                     }
                 },
                 message = self.shard.next_event() => {
-                    let message = message?;
+                    let message = match message {
+                        Ok(message) => message,
+                        Err(e) => {
+                            tracing::warn!("Failed to receive next event: {e:?}");
+                            continue;
+                        },
+                    };
                     tracing::trace!("Received message: {message:?}");
                 }
             }

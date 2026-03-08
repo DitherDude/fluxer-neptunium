@@ -1,0 +1,146 @@
+use bitflags::bitflags;
+use serde::{Deserialize, Serialize};
+use serde_repr::{Deserialize_repr, Serialize_repr};
+
+use crate::{
+    channel::message::{attachment::MessageAttachment, embed::MessageEmbed},
+    id::{
+        Id,
+        marker::{
+            ChannelMarker, EmojiMarker, MessageMarker, RoleMarker, StickerMarker, UserMarker,
+            WebhookMarker,
+        },
+    },
+    time::timestamp::{Timestamp, representations::Iso8601},
+    user::UserPartial,
+};
+
+pub mod attachment;
+mod call;
+pub mod embed;
+mod reference;
+mod snapshot;
+pub use call::*;
+pub use reference::*;
+pub use snapshot::*;
+
+#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
+#[repr(u8)]
+pub enum MessageType {
+    Regular = 0,
+    UserAddedToConversation = 1,
+    UserRemovedFromConversation = 2,
+    /// Representing a call.
+    Call = 3,
+    ChannelNameChanged = 4,
+    ChannelIconChanged = 5,
+    MessagePinned = 6,
+    UserJoin = 7,
+    Reply = 19,
+}
+
+bitflags! {
+    #[derive(Copy, Clone, Debug)]
+    pub struct MessageFlags: u32 {
+        const SUPPRESS_EMBEDS = 1 << 2;
+        /// Will not trigger push or desktop notifications.
+        const SUPPRESS_NOTIFICATIONS = 1 << 12;
+        const VOICE_MESSAGE = 1 << 13;
+        const COMPACT_ATTACHMENTS = 1 << 17;
+    }
+}
+
+impl Serialize for MessageFlags {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        self.bits().serialize(serializer)
+    }
+}
+
+impl<'de> Deserialize<'de> for MessageFlags {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        Ok(Self::from_bits_truncate(u32::deserialize(deserializer)?))
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Message {
+    #[serde(flatten)]
+    pub base: MessageBase,
+    /// The message that this message is replying to or forwarding.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub referenced_message: Option<MessageBase>,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MessageReactionEmoji {
+    #[serde(default)]
+    animated: bool,
+    /// `None` when the emoji is a unicode emoji.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    id: Option<Id<EmojiMarker>>,
+    /// Either the name of the emoji or the unicode character for standard emojis.
+    name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MessageReaction {
+    count: u32,
+    emoji: MessageReactionEmoji,
+    #[serde(default)]
+    me: bool,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MessageSticker {
+    animated: bool,
+    id: Id<StickerMarker>,
+    name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct MessageBase {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub attachments: Option<Vec<MessageAttachment>>,
+    pub author: UserPartial,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub call: Option<MessageCall>,
+    pub channel_id: Id<ChannelMarker>,
+    pub content: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub edited_timestamp: Option<Timestamp<Iso8601>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub embeds: Option<Vec<MessageEmbed>>,
+    pub flags: MessageFlags,
+    pub id: Id<MessageMarker>,
+    pub mention_everyone: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mention_roles: Option<Vec<Id<RoleMarker>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mentions: Option<Vec<Id<UserMarker>>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_reference: Option<MessageReference>,
+    /// Snapshots of forwarded messages.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message_snapshots: Option<Vec<MessageSnapshot>>,
+    /// A client-provided value for message deduplication.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nonce: Option<String>,
+    pub pinned: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reactions: Option<Vec<MessageReaction>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub stickers: Option<Vec<MessageSticker>>,
+    pub timestamp: Timestamp<Iso8601>,
+    #[serde(default)]
+    pub tts: bool,
+    #[serde(rename = "type")]
+    pub r#type: MessageType,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub webhook_id: Option<Id<WebhookMarker>>,
+}

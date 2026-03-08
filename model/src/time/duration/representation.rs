@@ -9,7 +9,7 @@ pub trait DurationRepr:
 }
 
 #[derive(Clone, Debug)]
-pub struct UnixSeconds {
+pub struct Seconds {
     inner: std::time::Duration,
 }
 
@@ -18,15 +18,15 @@ pub struct UnixMillis {
     inner: std::time::Duration,
 }
 
-impl DurationRepr for UnixSeconds {}
+impl DurationRepr for Seconds {}
 
-impl From<UnixSeconds> for std::time::Duration {
-    fn from(value: UnixSeconds) -> Self {
+impl From<Seconds> for std::time::Duration {
+    fn from(value: Seconds) -> Self {
         value.inner
     }
 }
 
-impl<'de> Deserialize<'de> for UnixSeconds {
+impl<'de> Deserialize<'de> for Seconds {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -37,7 +37,7 @@ impl<'de> Deserialize<'de> for UnixSeconds {
     }
 }
 
-impl Serialize for UnixSeconds {
+impl Serialize for Seconds {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,

@@ -1,10 +1,10 @@
 use serde::{Deserialize, Serialize};
 
 use crate::gateway::payload::incoming::{
-    guild_create::GuildCreate, guild_delete::GuildDelete, ready::Ready, typing_start::TypingStart,
+    guild_create::GuildCreate, guild_delete::GuildDelete, message_create::MessageCreate,
+    ready::Ready, typing_start::TypingStart,
 };
 
-#[expect(clippy::large_enum_variant)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "t", content = "d", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DispatchEvent {
@@ -12,6 +12,7 @@ pub enum DispatchEvent {
     GuildDelete(GuildDelete),
     GuildCreate(GuildCreate),
     TypingStart(TypingStart),
+    MessageCreate(MessageCreate),
     // TODO: Other variants
 }
 
