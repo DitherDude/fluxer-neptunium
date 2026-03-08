@@ -173,16 +173,28 @@ impl Client {
         match event {
             DispatchEvent::Ready(data) => {
                 for handler in &mut self.event_handlers {
-                    handler.on_ready(Context {}, data.clone()).await;
+                    handler.on_ready(Context {}, &data).await;
                 }
             }
             DispatchEvent::MessageCreate(data) => {
                 for handler in &mut self.event_handlers {
-                    handler.on_message(Context {}, data.clone()).await;
+                    handler.on_message(Context {}, &data).await;
                 }
             }
-            event => {
-                tracing::warn!("Not yet handling this event: {event:?}");
+            DispatchEvent::GuildCreate(data) => {
+                for handler in &mut self.event_handlers {
+                    handler.on_guild_create(Context {}, &data).await;
+                }
+            }
+            DispatchEvent::GuildDelete(data) => {
+                for handler in &mut self.event_handlers {
+                    handler.on_guild_delete(Context {}, &data).await;
+                }
+            }
+            DispatchEvent::TypingStart(data) => {
+                for handler in &mut self.event_handlers {
+                    handler.on_typing_start(Context {}, &data).await;
+                }
             }
         }
         Ok(())
