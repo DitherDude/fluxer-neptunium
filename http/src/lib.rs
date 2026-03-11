@@ -13,5 +13,6 @@ const fn unwrap_or(option: Option<&'static str>, default: &'static str) -> &'sta
     }
 }
 
+pub mod builders;
 pub mod channel;
 pub mod client;

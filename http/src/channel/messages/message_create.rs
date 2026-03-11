@@ -1,3 +1,4 @@
+use rand::distr::{Alphabetic, SampleString};
 use serde::Serialize;
 
 use fluxer_model::{
@@ -31,6 +32,40 @@ pub struct CreateMessageBody {
     pub tts: Option<bool>,
 }
 
+impl Default for CreateMessageBody {
+    fn default() -> Self {
+        Self {
+            content: None,
+            embeds: vec![],
+            attachments: vec![],
+            message_reference: None,
+            allowed_mentions: None,
+            flags: MessageFlags::empty(),
+            nonce: Alphabetic.sample_string(&mut rand::rng(), 16), // TODO: make this better (don't use rand)
+            favorite_meme_id: None,
+            sticker_ids: None,
+            tts: None,
+        }
+    }
+}
+
+impl From<&str> for CreateMessageBody {
+    fn from(value: &str) -> Self {
+        Self {
+            content: Some(value.to_owned()),
+            embeds: vec![],
+            attachments: vec![],
+            message_reference: None,
+            allowed_mentions: None,
+            flags: MessageFlags::empty(),
+            nonce: Alphabetic.sample_string(&mut rand::rng(), 16), // TODO: make this better (don't use rand)
+            favorite_meme_id: None,
+            sticker_ids: None,
+            tts: None,
+        }
+    }
+}
+
 pub struct MessageBuilder {
     body: CreateMessageBody,
 }
@@ -46,7 +81,7 @@ impl MessageBuilder {
                 message_reference: None,
                 allowed_mentions: None,
                 flags: MessageFlags::empty(),
-                nonce: String::from("-"),
+                nonce: Alphabetic.sample_string(&mut rand::rng(), 16), // TODO: make this better (don't use rand)
                 favorite_meme_id: None,
                 sticker_ids: None,
                 tts: None,

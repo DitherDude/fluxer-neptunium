@@ -44,7 +44,7 @@ impl std::fmt::Display for Error {
 #[derive(Debug)]
 pub enum ClientErrorKind {
     NetworkError(tungstenite::Error),
-    ParseError(serde_json::Error),
+    ParseError(serde_path_to_error::Error<serde_json::Error>),
     UnsupportedMessageEncoding,
     UnexpectedEventReceived(Box<GatewayEvent>),
     ConnectionClosed(Option<CloseFrame>),

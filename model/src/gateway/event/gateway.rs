@@ -1,6 +1,6 @@
 use serde::{
     Deserialize,
-    de::{self, Unexpected},
+    de::{self, Error, Unexpected},
 };
 use serde_json::Value;
 
@@ -44,7 +44,11 @@ impl<'de> Deserialize<'de> for GatewayEvent {
             OpCode::Hello => Self::Hello(serde_json::from_value(d).map_err(de::Error::custom)?),
             OpCode::Heartbeat => Self::Heartbeat,
             OpCode::HeartbeatAck => Self::HeartbeatAck,
-            _ => todo!(),
+            opcode => {
+                return Err(D::Error::custom(format!(
+                    "Not yet supported opcode: {opcode:?}"
+                )));
+            }
         })
     }
 }

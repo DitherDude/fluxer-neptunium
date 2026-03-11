@@ -43,7 +43,7 @@ pub struct Shard {
 #[derive(Debug)]
 pub enum EventReceiveError {
     TungsteniteError(Error),
-    ParseError(serde_json::Error),
+    ParseError(serde_path_to_error::Error<serde_json::Error>),
     UnsupportedMessageEncoding,
     Closed(Option<CloseFrame>),
 }
@@ -102,7 +102,15 @@ impl Shard {
         let Message::Text(message) = message else {
             return Err(EventReceiveError::UnsupportedMessageEncoding);
         };
-        serde_json::from_str(message.as_str()).map_err(EventReceiveError::ParseError)
+        // serde_json::from_str(message.as_str()).map_err(EventReceiveError::ParseError)
+        let result = serde_path_to_error::deserialize(&mut serde_json::Deserializer::from_str(
+            message.as_str(),
+        ))
+        .map_err(EventReceiveError::ParseError);
+        if result.is_err() {
+            tracing::debug!("Error while parsing: {}", message);
+        }
+        result
     }
 
     /// # Errors

@@ -16,7 +16,10 @@ impl MessagesClient<'_> {
     pub async fn create(&self, data: &CreateMessageBody) -> Result<Response, reqwest::Error> {
         let body = serde_json::to_string(data).unwrap();
 
-        self.client
+        tracing::debug!("Sending create message request: {data:?}");
+
+        let response = self
+            .client
             .reqwest_client
             .request(
                 Method::POST,
@@ -29,6 +32,10 @@ impl MessagesClient<'_> {
             .header("User-Agent", &self.client.user_agent)
             .body(body)
             .send()
-            .await
+            .await;
+        // TODO change to trace
+        tracing::debug!("Response: {response:?}");
+
+        response
     }
 }

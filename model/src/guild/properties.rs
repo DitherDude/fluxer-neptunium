@@ -135,6 +135,7 @@ impl<'de> Deserialize<'de> for SystemChannelFlags {
     }
 }
 
+/// A guild feature flag.
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum GuildFeatureFlag {
@@ -145,6 +146,8 @@ pub enum GuildFeatureFlag {
     Banner,
     /// Guild banner is detached from splash.
     DetachedBanner,
+    // https://github.com/fluxerapp/fluxer/blob/03813bbe17db008452f0f1be3090a7d2970a5447/packages/constants/src/GuildConstants.tsx#L115
+    Discoverable,
     /// Guild can have an invite splash.
     InviteSplash,
     /// Guild has invites disabled.

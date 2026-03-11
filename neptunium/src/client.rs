@@ -8,10 +8,7 @@ use fluxer_model::gateway::{
     },
 };
 use neptunium_http::client::HttpClient;
-use tokio::sync::{
-    //Mutex,
-    mpsc::{UnboundedSender, unbounded_channel},
-};
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
 use crate::{
     client::error::{ClientErrorKind, Error},
@@ -19,7 +16,10 @@ use crate::{
 };
 
 pub mod api_info;
+mod config;
 pub mod error;
+pub mod http;
+pub use config::*;
 
 enum ClientMessage {
     Heartbeat,
@@ -27,7 +27,7 @@ enum ClientMessage {
 
 pub struct Client {
     shard: Shard,
-    event_handlers: Vec<Box<dyn EventHandler>>,
+    event_handlers: Vec<Arc<dyn EventHandler + Sync + 'static>>,
     last_sequence_number: Option<u64>,
     context: Context,
 }
@@ -36,9 +36,12 @@ impl Client {
     pub const USER_AGENT: &str = "Fluxer-Neptunium";
 
     #[must_use]
-    pub fn new(shard_config: ShardConfig) -> Self {
+    pub fn new(shard_config: ShardConfig, client_config: ClientConfig) -> Self {
         let token_clone = (*shard_config.token).clone();
         let mut api_client = HttpClient::new(token_clone);
+        if let Some(api_base_url) = client_config.api_base_url {
+            api_client.set_api_base_url(api_base_url);
+        }
         api_client.set_user_agent(format!("{}/{}", Self::USER_AGENT, crate::VERSION));
 
         Self {
@@ -46,14 +49,14 @@ impl Client {
             event_handlers: Vec::new(),
             last_sequence_number: None,
             context: Context {
-                api_client: Arc::new(api_client),
+                http_client: Arc::new(api_client),
             },
         }
     }
 
-    pub fn register_event_handler(&mut self, handler: impl EventHandler + 'static) {
+    pub fn register_event_handler(&mut self, handler: impl EventHandler + Sync + 'static) {
         self.event_handlers
-            .push(Box::new(handler) as Box<dyn EventHandler>);
+            .push(Arc::new(handler) as Arc<dyn EventHandler + Sync>);
     }
 
     pub async fn start(&mut self) -> Result<(), self::error::Error> {
@@ -125,7 +128,7 @@ impl Client {
                     let message = match message {
                         Ok(message) => message,
                         Err(EventReceiveError::ParseError(e)) => {
-                            tracing::warn!("Failed to parse: {}", e);
+                            tracing::warn!("Failed to parse at `{}`: {}", e.path(), e);
                             continue;
                         }
                         Err(EventReceiveError::TungsteniteError(e)) => {
@@ -173,7 +176,7 @@ impl Client {
             }
             GatewayEvent::Reconnect => todo!("Reconnecting is not yet implemented"),
             GatewayEvent::Dispatch(payload) => {
-                // Maybe check if the current sequence number is bigger than the received one because that shouldn't happen? Or something...
+                // TODO: Maybe check if the current sequence number is bigger than the received one because that shouldn't happen? Or something...
                 self.last_sequence_number = Some(payload.sequence_number);
                 return self.handle_dispatch_event(payload.event).await;
             }
@@ -185,31 +188,35 @@ impl Client {
         &mut self,
         event: DispatchEvent,
     ) -> Result<(), self::error::Error> {
+        macro_rules! call_event_handlers {
+            ($handlers:expr, $ctx:expr, $data:expr => $func_name:ident) => {{
+                let arc = Arc::new($data);
+                for handler in &$handlers {
+                    let handler = Arc::clone(handler);
+                    let cloned_arc = Arc::clone(&arc);
+                    let ctx_clone = $ctx.clone();
+                    // TODO: Maybe store all the `JoinHandle`s in an array in the `Client` struct so that they could all be cancelled
+                    // when the `Client` stops? Maybe...
+                    tokio::spawn(async move { handler.$func_name(ctx_clone, cloned_arc).await });
+                }
+            }};
+        }
+
         match event {
             DispatchEvent::Ready(data) => {
-                for handler in &mut self.event_handlers {
-                    handler.on_ready(self.context.clone(), &data).await;
-                }
+                call_event_handlers!(self.event_handlers, self.context, data => on_ready)
             }
             DispatchEvent::MessageCreate(data) => {
-                for handler in &mut self.event_handlers {
-                    handler.on_message(self.context.clone(), &data).await;
-                }
+                call_event_handlers!(self.event_handlers, self.context, data => on_message)
             }
             DispatchEvent::GuildCreate(data) => {
-                for handler in &mut self.event_handlers {
-                    handler.on_guild_create(self.context.clone(), &data).await;
-                }
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_create)
             }
             DispatchEvent::GuildDelete(data) => {
-                for handler in &mut self.event_handlers {
-                    handler.on_guild_delete(self.context.clone(), &data).await;
-                }
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_delete)
             }
             DispatchEvent::TypingStart(data) => {
-                for handler in &mut self.event_handlers {
-                    handler.on_typing_start(self.context.clone(), &data).await;
-                }
+                call_event_handlers!(self.event_handlers, self.context, data => on_typing_start)
             }
         }
         Ok(())
