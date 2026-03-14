@@ -4,7 +4,7 @@ use bon::Builder;
 use fluxer_model::{
     id::{
         Id,
-        marker::{ChannelMarker, EmojiMarker, MessageMarker},
+        marker::{ChannelMarker, EmojiMarker, MessageMarker, UserMarker},
     },
     user::UserPartial,
 };
@@ -63,7 +63,7 @@ impl Endpoint for ListReactions<'_> {
     }
 }
 
-#[derive(Builder, Clone, Debug)]
+#[derive(Builder, Copy, Clone, Debug)]
 pub struct AddReaction<'a> {
     pub channel_id: Id<ChannelMarker>,
     pub message_id: Id<MessageMarker>,
@@ -78,6 +78,93 @@ impl Endpoint for AddReaction<'_> {
             .path(format!(
                 "/channels/{}/messages/{}/reactions/{}/@me",
                 self.channel_id, self.message_id, self.reaction
+            ))
+            .build()
+    }
+}
+
+#[derive(Builder, Copy, Clone, Debug)]
+pub struct RemoveOwnReaction<'a> {
+    pub channel_id: Id<ChannelMarker>,
+    pub message_id: Id<MessageMarker>,
+    pub reaction: &'a RequestReactionType<'a>,
+}
+
+impl Endpoint for RemoveOwnReaction<'_> {
+    type Response = ();
+
+    fn into_request(self) -> Request {
+        Request::builder()
+            .method(Method::DELETE)
+            .path(format!(
+                "/channels/{}/messages/{}/reactions/{}/@me",
+                self.channel_id, self.message_id, self.reaction
+            ))
+            .build()
+    }
+}
+
+/// Remove one specified reaction from a user on a message.
+#[derive(Builder, Copy, Clone, Debug)]
+pub struct RemoveReaction<'a> {
+    pub channel_id: Id<ChannelMarker>,
+    pub message_id: Id<MessageMarker>,
+    pub reaction: &'a RequestReactionType<'a>,
+    pub target: Id<UserMarker>,
+}
+
+impl Endpoint for RemoveReaction<'_> {
+    type Response = ();
+
+    fn into_request(self) -> Request {
+        Request::builder()
+            .method(Method::DELETE)
+            .path(format!(
+                "/channels/{}/messages/{}/reactions/{}/@{}",
+                self.channel_id, self.message_id, self.reaction, self.target
+            ))
+            .build()
+    }
+}
+
+/// Remove all reactions of a specified emoji from a message.
+#[derive(Builder, Copy, Clone, Debug)]
+pub struct RemoveAllReaction<'a> {
+    pub channel_id: Id<ChannelMarker>,
+    pub message_id: Id<MessageMarker>,
+    pub reaction: &'a RequestReactionType<'a>,
+}
+
+impl Endpoint for RemoveAllReaction<'_> {
+    type Response = ();
+
+    fn into_request(self) -> Request {
+        Request::builder()
+            .method(Method::DELETE)
+            .path(format!(
+                "/channels/{}/messages/{}/reactions/{}",
+                self.channel_id, self.message_id, self.reaction
+            ))
+            .build()
+    }
+}
+
+/// Remove all reactions from a message.
+#[derive(Builder, Copy, Clone, Debug)]
+pub struct RemoveAllReactions {
+    pub channel_id: Id<ChannelMarker>,
+    pub message_id: Id<MessageMarker>,
+}
+
+impl Endpoint for RemoveAllReactions {
+    type Response = ();
+
+    fn into_request(self) -> Request {
+        Request::builder()
+            .method(Method::DELETE)
+            .path(format!(
+                "/channels/{}/messages/{}/reactions",
+                self.channel_id, self.message_id
             ))
             .build()
     }
