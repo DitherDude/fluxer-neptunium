@@ -236,6 +236,72 @@ impl Client {
             DispatchEvent::GuildAuditLogEntryCreate(data) => {
                 call_event_handlers!(self.event_handlers, self.context, data => on_audit_log_entry_create)
             }
+            DispatchEvent::UserUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_user_update)
+            }
+            DispatchEvent::UserPinnedDmsUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_user_pinned_dms_update)
+            }
+            DispatchEvent::UserSettingsUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_user_settings_update)
+            }
+            DispatchEvent::UserGuildSettingsUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_user_guild_settings_update)
+            }
+            DispatchEvent::UserNoteUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_user_note_update)
+            }
+            DispatchEvent::RecentMentionDelete(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_recent_mention_delete)
+            }
+            DispatchEvent::SavedMessageCreate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_saved_message_create)
+            }
+            DispatchEvent::SavedMessageDelete(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_saved_message_delete)
+            }
+            DispatchEvent::FavoriteMemeCreate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_favorite_meme_create)
+            }
+            DispatchEvent::FavoriteMemeUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_favorite_meme_update)
+            }
+            DispatchEvent::FavoriteMemeDelete(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_favorite_meme_delete)
+            }
+            DispatchEvent::AuthSessionChange(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_auth_session_change)
+            }
+            DispatchEvent::PresenceUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_presence_update)
+            }
+            DispatchEvent::GuildUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_update)
+            }
+            DispatchEvent::GuildMemberAdd(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_member_add)
+            }
+            DispatchEvent::GuildMemberUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_member_update)
+            }
+            DispatchEvent::GuildMemberRemove(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_member_remove)
+            }
+            DispatchEvent::GuildRoleCreate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_role_create)
+            }
+            DispatchEvent::GuildRoleUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_role_update)
+            }
+            DispatchEvent::GuildRoleUpdateBulk(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_role_update_bulk)
+            }
+            DispatchEvent::GuildRoleDelete(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_role_delete)
+            }
+            DispatchEvent::GuildStickersUpdate(data) => {
+                call_event_handlers!(self.event_handlers, self.context, data => on_guild_stickers_update)
+            }
         }
         Ok(())
     }
