@@ -34,7 +34,8 @@ pub struct AuditLogOptionalEntryInfo {
     pub role_name: Option<String>,
     // TODO: Document all variants below this comment.
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
-    pub r#type: Option<u64>,
+    // this is probably the channel type, but as a string instead of number (why, fluxer?????)
+    pub r#type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inviter_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -16,7 +16,6 @@ marker! {
     GuildMarker,
     ChannelMarker,
     MessageMarker,
-    VoiceRegionMarker,
     GenericMarker,
     EmojiMarker,
     ApplicationMarker,

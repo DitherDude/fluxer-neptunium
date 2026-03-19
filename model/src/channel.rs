@@ -1,21 +1,55 @@
 use std::collections::HashMap;
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     guild::permissions::Permissions,
     id::{
         Id,
-        marker::{
-            ChannelMarker, GenericMarker, GuildMarker, MessageMarker, UserMarker, VoiceRegionMarker,
-        },
+        marker::{ChannelMarker, GenericMarker, GuildMarker, MessageMarker, UserMarker},
     },
     time::timestamp::{Timestamp, representations::Iso8601},
     user::UserPartial,
 };
 
 pub mod message;
+
+#[derive(Clone, Debug)]
+pub enum RtcVoiceRegion {
+    Automatic,
+    Fixed(String),
+}
+
+impl<'de> Deserialize<'de> for RtcVoiceRegion {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        // TODO: Make this more efficient by not deserializing into a value first
+        let value = Value::deserialize(deserializer)?;
+
+        match value {
+            Value::Null => Ok(Self::Automatic),
+            Value::String(s) => Ok(Self::Fixed(s)),
+            // TODO: Maybe use unexpected instead but that is annoying to do
+            _ => Err(serde::de::Error::custom("expected either a string or null")),
+        }
+    }
+}
+
+impl Serialize for RtcVoiceRegion {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        match self {
+            Self::Automatic => Value::Null.serialize(serializer),
+            Self::Fixed(s) => s.serialize(serializer),
+        }
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct ChannelPartialRecipient {
@@ -47,6 +81,8 @@ pub enum ChannelType {
     DmPersonalNotes = 999,
 }
 
+// TODO: Make this an enum instead maybe.
+// Maybe find out why twilight does it in this way too (and not an enum)
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Channel {
     /// The bitrate of the voice channel in bits per second
@@ -83,12 +119,11 @@ pub struct Channel {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub recipients: Option<Vec<UserPartial>>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub rtc_region: Option<Id<VoiceRegionMarker>>,
+    pub rtc_region: Option<RtcVoiceRegion>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub topic: Option<String>,
-    // TODO: figure out what this number means (its the type of the channel)
     #[serde(rename = "type")]
-    pub r#type: i32,
+    pub r#type: ChannelType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
