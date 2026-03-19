@@ -354,6 +354,7 @@ name = "fluxer-model"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "bon",
  "serde",
  "serde_json",
  "serde_repr",

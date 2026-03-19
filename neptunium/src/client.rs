@@ -1,14 +1,15 @@
-use std::{sync::Arc, time::Duration};
+use std::{ops::Deref, sync::Arc, time::Duration};
 
 use fluxer_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
 use fluxer_model::gateway::{
     event::{dispatch::DispatchEvent, gateway::GatewayEvent, invalid_session::InvalidSessionEvent},
     payload::outgoing::{
         OutgoingGatewayMessage, heartbeat::Heartbeat, identify::ConnectionProperties,
+        presence_update::PresenceUpdateOutgoing,
     },
 };
 use neptunium_http::client::HttpClient;
-use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
+use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use crate::{
     client::error::{ClientErrorKind, Error},
@@ -21,8 +22,9 @@ pub mod error;
 // pub mod http;
 pub use config::*;
 
-enum ClientMessage {
+pub(crate) enum ClientMessage {
     Heartbeat,
+    UpdatePresence(PresenceUpdateOutgoing),
 }
 
 pub struct Client {
@@ -30,6 +32,15 @@ pub struct Client {
     event_handlers: Vec<Arc<dyn EventHandler + Sync + 'static>>,
     last_sequence_number: Option<u64>,
     context: Context,
+    tx: UnboundedSender<ClientMessage>,
+    rx: UnboundedReceiver<ClientMessage>,
+}
+
+impl Deref for Client {
+    type Target = Context;
+    fn deref(&self) -> &Self::Target {
+        &self.context
+    }
 }
 
 impl Client {
@@ -44,14 +55,24 @@ impl Client {
         }
         api_client.set_user_agent(format!("{}/{}", Self::USER_AGENT, crate::VERSION));
 
+        let (tx, rx) = unbounded_channel::<ClientMessage>();
+
         Self {
             shard: Shard::new(shard_config),
             event_handlers: Vec::new(),
             last_sequence_number: None,
             context: Context {
                 http_client: Arc::new(api_client),
+                tx: tx.clone(),
             },
+            tx,
+            rx,
         }
+    }
+
+    #[must_use]
+    pub fn context(&self) -> &Context {
+        &self.context
     }
 
     pub fn register_event_handler(&mut self, handler: impl EventHandler + Sync + 'static) {
@@ -81,9 +102,7 @@ impl Client {
             heartbeat_interval.as_millis()
         );
 
-        let (tx, mut rx) = unbounded_channel::<ClientMessage>();
-
-        let tx_clone = tx.clone();
+        let tx_clone = self.tx.clone();
         tokio::spawn(async move {
             #[expect(clippy::cast_possible_truncation)]
             let millis = rand::random_range(0..heartbeat_interval.as_millis() as u64);
@@ -91,7 +110,7 @@ impl Client {
             let _ = tx_clone.send(ClientMessage::Heartbeat);
         });
 
-        let tx_clone = tx.clone();
+        let tx_clone = self.tx.clone();
         tokio::spawn(async move {
             loop {
                 tokio::time::sleep(heartbeat_interval).await;
@@ -113,7 +132,7 @@ impl Client {
 
         loop {
             tokio::select! {
-                message = rx.recv() => {
+                message = self.rx.recv() => {
                     let Some(message) = message else {
                         tracing::debug!("Channel closed, exiting.");
                         return Ok(());
@@ -126,6 +145,9 @@ impl Client {
                                     last_sequence_number: self.last_sequence_number,
                                 }))
                                 .await?;
+                        }
+                        ClientMessage::UpdatePresence(data) => {
+                            self.shard.send_gateway_message(OutgoingGatewayMessage::PresenceUpdate(data)).await?;
                         }
                     }
                 },
@@ -151,21 +173,17 @@ impl Client {
                         }
                     };
                     tracing::trace!("Received message: {message:?}");
-                    self.handle_event(message, &tx).map_err(|e| *e)?;
+                    self.handle_event(message).map_err(|e| *e)?;
                 }
             }
         }
     }
 
     /// Does not block because it spawns a new task for each event handler.
-    fn handle_event(
-        &mut self,
-        event: GatewayEvent,
-        tx: &UnboundedSender<ClientMessage>,
-    ) -> Result<(), Box<self::error::Error>> {
+    fn handle_event(&mut self, event: GatewayEvent) -> Result<(), Box<self::error::Error>> {
         match event {
             GatewayEvent::Heartbeat => {
-                let _ = tx.send(ClientMessage::Heartbeat);
+                let _ = self.tx.send(ClientMessage::Heartbeat);
             }
             GatewayEvent::HeartbeatAck => {}
             GatewayEvent::Hello(hello) => {

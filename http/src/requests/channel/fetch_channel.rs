@@ -1,0 +1,24 @@
+use bon::Builder;
+use fluxer_model::{
+    channel::Channel,
+    id::{Id, marker::ChannelMarker},
+};
+use reqwest::Method;
+
+use crate::{endpoints::Endpoint, requests::Request};
+
+#[derive(Builder, Copy, Clone, Debug)]
+pub struct FetchChannel {
+    pub channel_id: Id<ChannelMarker>,
+}
+
+impl Endpoint for FetchChannel {
+    type Response = Channel;
+
+    fn into_request(self) -> crate::requests::Request {
+        Request::builder()
+            .method(Method::GET)
+            .path(format!("/channels/{}", self.channel_id))
+            .build()
+    }
+}

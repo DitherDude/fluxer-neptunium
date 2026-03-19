@@ -1,3 +1,4 @@
+use bon::Builder;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -20,13 +21,16 @@ pub enum PresenceStatus {
     Offline,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Builder, Serialize, Deserialize, Clone, Debug)]
 pub struct CustomStatus {
-    text: String,
-    emoji_id: Option<Id<EmojiMarker>>,
-    emoji_name: Option<String>,
-    /// When the custom status expires.
-    expires_at: Option<Timestamp<Iso8601>>,
+    #[builder(into)]
+    pub text: Option<String>,
+    #[builder(into)]
+    pub emoji_id: Option<Id<EmojiMarker>>,
+    #[builder(into)]
+    pub emoji_name: Option<String>,
+    #[builder(into)]
+    pub expires_at: Option<Timestamp<Iso8601>>,
 }
 
 /// Represents a user's presence (online status and activity).

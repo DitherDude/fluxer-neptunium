@@ -1,1 +1,6 @@
 pub mod messages;
+
+mod fetch_channel;
+pub use fetch_channel::*;
+mod delete_channel;
+pub use delete_channel::*;

@@ -1,4 +1,5 @@
 use bitflags::bitflags;
+use bon::Builder;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use zeroize::Zeroizing;
 
@@ -135,13 +136,19 @@ pub struct ActivityButton {
 }
 
 /// Bot users are only able to set `name`, `state`, `type`, and `url`.
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Builder)]
 pub struct Activity {
+    #[builder(into)]
     pub name: String,
     #[serde(rename = "type")]
     pub r#type: ActivityType,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
+    #[builder(default = {
+        #[expect(clippy::cast_possible_truncation)]
+        let value = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_millis() as u64;
+        value
+    })]
     pub created_at: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamps: Option<Timestamps>,

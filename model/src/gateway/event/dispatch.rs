@@ -32,7 +32,7 @@ use crate::{
             message_reaction_remove_all::MessageReactionRemoveAll,
             message_reaction_remove_emoji::MessageReactionRemoveEmoji,
         },
-        presence_events::presence_update::PresenceUpdate,
+        presence_events::presence_update::PresenceUpdateIncoming,
         read_state_events::message_ack::MessageAck,
         relationship_events::relationship_remove::RelationshipRemove,
         roles_events::{
@@ -80,7 +80,7 @@ pub enum DispatchEvent {
     FavoriteMemeUpdate(FavoriteMeme),
     FavoriteMemeDelete(FavoriteMemeDelete),
     AuthSessionChange(AuthSessionChange),
-    PresenceUpdate(PresenceUpdate),
+    PresenceUpdate(PresenceUpdateIncoming),
     GuildCreate(GuildCreate),
     GuildUpdate(GuildResponse),
     GuildDelete(GuildDelete),

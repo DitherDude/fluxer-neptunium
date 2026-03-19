@@ -33,7 +33,7 @@ use fluxer_model::{
             message_reaction_remove_all::MessageReactionRemoveAll,
             message_reaction_remove_emoji::MessageReactionRemoveEmoji,
         },
-        presence_events::presence_update::PresenceUpdate,
+        presence_events::presence_update::PresenceUpdateIncoming,
         read_state_events::message_ack::MessageAck,
         relationship_events::relationship_remove::RelationshipRemove,
         roles_events::{
@@ -88,7 +88,7 @@ pub trait EventHandler: Send {
     async fn on_favorite_meme_update(&self, ctx: Context, data: Arc<FavoriteMeme>) {}
     async fn on_favorite_meme_delete(&self, ctx: Context, data: Arc<FavoriteMemeDelete>) {}
     async fn on_auth_session_change(&self, ctx: Context, data: Arc<AuthSessionChange>) {}
-    async fn on_presence_update(&self, ctx: Context, data: Arc<PresenceUpdate>) {}
+    async fn on_presence_update(&self, ctx: Context, data: Arc<PresenceUpdateIncoming>) {}
     async fn on_guild_create(&self, ctx: Context, data: Arc<GuildCreate>) {}
     async fn on_guild_update(&self, ctx: Context, data: Arc<GuildResponse>) {}
     async fn on_guild_delete(&self, ctx: Context, data: Arc<GuildDelete>) {}
