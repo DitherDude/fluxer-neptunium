@@ -1,10 +1,10 @@
 use async_trait::async_trait;
-use fluxer_model::{
-    channel::{Channel, ChannelPartial},
-    id::{Id, marker::ChannelMarker},
-};
 use neptunium_http::endpoints::channel::{
     ChannelSettingsUpdates, DeleteChannel, FetchChannel, UpdateChannelSettings,
+};
+use neptunium_model::{
+    channel::{Channel, ChannelPartial},
+    id::{Id, marker::ChannelMarker},
 };
 
 use crate::{client::error::Error, events::context::Context};

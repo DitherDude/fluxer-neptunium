@@ -1,5 +1,5 @@
 use bon::Builder;
-use fluxer_model::id::{
+use neptunium_model::id::{
     Id,
     marker::{EmojiMarker, GuildMarker},
 };

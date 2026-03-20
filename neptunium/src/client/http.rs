@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use fluxer_model::id::{Id, marker::ChannelMarker};
+use neptunium_model::id::{Id, marker::ChannelMarker};
 use neptunium_http::{builders::create_message_builder::CreateMessageBuilder, client::HttpClient};
 
 /// Operations on messages in a channel.

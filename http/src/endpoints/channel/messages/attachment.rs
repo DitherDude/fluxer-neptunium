@@ -1,7 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use bon::Builder;
-use fluxer_model::{
+use neptunium_model::{
     channel::message::attachment::MessageAttachmentFlags,
     id::{Id, marker::GenericMarker},
     time::duration::{Duration, representation::Seconds},

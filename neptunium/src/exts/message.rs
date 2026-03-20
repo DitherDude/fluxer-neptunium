@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use fluxer_model::{
+use neptunium_model::{
     channel::message::Message,
     id::{Id, marker::UserMarker},
 };

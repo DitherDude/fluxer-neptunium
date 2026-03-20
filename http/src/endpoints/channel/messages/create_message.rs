@@ -2,7 +2,7 @@ use bon::Builder;
 use reqwest::Method;
 use serde::Serialize;
 
-use fluxer_model::{
+use neptunium_model::{
     channel::message::{Message, MessageFlags, embed::MessageEmbed, nonce::Nonce},
     id::{
         Id,

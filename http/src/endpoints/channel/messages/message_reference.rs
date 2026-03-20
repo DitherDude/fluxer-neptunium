@@ -1,7 +1,7 @@
 use bon::Builder;
 use serde::Serialize;
 
-use fluxer_model::{
+use neptunium_model::{
     channel::message::MessageReferenceType,
     id::{
         Id,

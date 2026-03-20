@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use fluxer_model::{
+use neptunium_http::client::HttpClient;
+use neptunium_model::{
     channel::Channel,
     gateway::payload::outgoing::presence_update::PresenceUpdateOutgoing,
     id::{Id, marker::ChannelMarker},
 };
-use neptunium_http::client::HttpClient;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{

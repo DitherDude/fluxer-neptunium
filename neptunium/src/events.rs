@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use fluxer_model::{
+use neptunium_model::{
     channel::{Channel, message::Message},
     gateway::payload::incoming::{
         audit_log_events::audit_log_entry_create::GuildAuditLogEntryCreate,

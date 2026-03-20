@@ -1,4 +1,4 @@
-use fluxer_model::time::duration::{Duration, representation::Seconds};
+use neptunium_model::time::duration::{Duration, representation::Seconds};
 use serde::Deserialize;
 
 use crate::error::{error_code::ApiErrorCode, validation_error_code::ApiValidationErrorCode};

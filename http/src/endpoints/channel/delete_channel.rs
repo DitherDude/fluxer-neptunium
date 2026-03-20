@@ -1,5 +1,5 @@
 use bon::Builder;
-use fluxer_model::id::{Id, marker::ChannelMarker};
+use neptunium_model::id::{Id, marker::ChannelMarker};
 use reqwest::Method;
 
 use crate::{endpoints::Endpoint, request::Request};

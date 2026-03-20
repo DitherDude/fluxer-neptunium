@@ -1,5 +1,5 @@
 use bon::Builder;
-use fluxer_model::gateway::{intents::Intents, shard::ShardInfo};
+use neptunium_model::gateway::{intents::Intents, shard::ShardInfo};
 use zeroize::Zeroizing;
 
 #[derive(Debug, Builder)]

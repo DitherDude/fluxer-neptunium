@@ -1,5 +1,5 @@
 use bon::Builder;
-use fluxer_model::{
+use neptunium_model::{
     channel::message::{Message, MessageFlags, embed::MessageEmbed},
     id::{
         Id,

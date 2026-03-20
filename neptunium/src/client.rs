@@ -1,14 +1,14 @@
 use std::{ops::Deref, sync::Arc, time::Duration};
 
-use fluxer_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
-use fluxer_model::gateway::{
+use neptunium_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
+use neptunium_http::client::HttpClient;
+use neptunium_model::gateway::{
     event::{dispatch::DispatchEvent, gateway::GatewayEvent, invalid_session::InvalidSessionEvent},
     payload::outgoing::{
         OutgoingGatewayMessage, heartbeat::Heartbeat, identify::ConnectionProperties,
         presence_update::PresenceUpdateOutgoing,
     },
 };
-use neptunium_http::client::HttpClient;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 
 use crate::{

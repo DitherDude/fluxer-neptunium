@@ -1,13 +1,13 @@
-use fluxer_model::gateway::{
+use futures_util::{
+    SinkExt, StreamExt,
+    stream::{SplitSink, SplitStream},
+};
+use neptunium_model::gateway::{
     event::gateway::GatewayEvent,
     payload::outgoing::{
         OutgoingGatewayMessage,
         identify::{ConnectionProperties, Identify},
     },
-};
-use futures_util::{
-    SinkExt, StreamExt,
-    stream::{SplitSink, SplitStream},
 };
 use tokio_tungstenite::{
     connect_async,

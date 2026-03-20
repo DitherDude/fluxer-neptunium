@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use bon::Builder;
-use fluxer_model::{
+use neptunium_model::{
     id::{
         Id,
         marker::{ChannelMarker, EmojiMarker, MessageMarker, UserMarker},

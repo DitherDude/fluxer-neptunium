@@ -20,6 +20,6 @@ const fn unwrap_or(option: Option<&'static str>, default: &'static str) -> &'sta
 pub mod prelude {
     pub use crate::client::Client;
     pub use crate::exts::*;
-    pub use fluxer_gateway::shard::config::{ShardConfig, ShardConfigBuilder};
-    pub use fluxer_model as model;
+    pub use neptunium_gateway::shard::config::{ShardConfig, ShardConfigBuilder};
+    pub use neptunium_model as model;
 }

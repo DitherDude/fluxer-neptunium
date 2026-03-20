@@ -1,9 +1,9 @@
-use fluxer_gateway::shard::EventReceiveError;
-use fluxer_model::gateway::event::gateway::GatewayEvent;
+use neptunium_gateway::shard::EventReceiveError;
 use neptunium_http::{
     endpoints::ExecuteEndpointRequestError,
     error::{ApiErrorResponse, ApiRateLimitedResponse},
 };
+use neptunium_model::gateway::event::gateway::GatewayEvent;
 use tokio_tungstenite::tungstenite::{self, protocol::CloseFrame};
 
 #[derive(Debug)]

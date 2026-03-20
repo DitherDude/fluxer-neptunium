@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use bon::Builder;
-use fluxer_model::{
+use neptunium_model::{
     channel::{Channel, ChannelType, PermissionOverwrite, RtcVoiceRegion},
     id::{
         Id,
