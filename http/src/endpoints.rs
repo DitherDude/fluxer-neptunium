@@ -2,7 +2,7 @@ use std::string::FromUtf8Error;
 
 use serde::de::DeserializeOwned;
 
-use crate::requests::Request;
+use crate::{requests::Request, responses::error::ApiErrorResponse};
 
 pub mod messages;
 
@@ -55,6 +55,22 @@ pub enum ExecuteEndpointRequestError {
     ResponseNotOk(reqwest::Response),
     DeserializationError(serde_path_to_error::Error<serde_json::Error>),
     NonUtf8Bytes(FromUtf8Error),
+    // TODO: Add fields to this and stuff.
+    // Also need to actually implement rate limit handling
+    // and waiting until the rate limit expires so that the
+    // user doesn't need to worry about this.
+    /// 429 Too Many Requests.
+    RateLimited,
+    /// 400 Bad Request.
+    BadRequest(ApiErrorResponse),
+    /// 401 Unauthorized.
+    Unauthorized(ApiErrorResponse),
+    /// 403 Forbidden.
+    Forbidden(ApiErrorResponse),
+    /// 404 Not Found.
+    NotFound(ApiErrorResponse),
+    /// 500 Internal Server Error.
+    InternalServerError(ApiErrorResponse),
 }
 
 impl From<reqwest::Error> for ExecuteEndpointRequestError {

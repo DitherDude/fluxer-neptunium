@@ -1,6 +1,6 @@
 use fluxer_gateway::shard::EventReceiveError;
 use fluxer_model::gateway::event::gateway::GatewayEvent;
-use neptunium_http::endpoints::ExecuteEndpointRequestError;
+use neptunium_http::{endpoints::ExecuteEndpointRequestError, responses::error::ApiErrorResponse};
 use tokio_tungstenite::tungstenite::{self, protocol::CloseFrame};
 
 #[derive(Debug)]
@@ -42,6 +42,23 @@ impl std::fmt::Display for Error {
             ClientErrorKind::HttpStatusNotOk(response) => f.write_fmt(format_args!(
                 "HTTP error: The server did not respond OK: {response:?}"
             )),
+            // TODO: Improve these error messages
+            ClientErrorKind::HttpNotFound(err) => {
+                f.write_fmt(format_args!("API Error: Not Found: {err:?}"))
+            }
+            ClientErrorKind::HttpBadRequest(err) => {
+                f.write_fmt(format_args!("API Error: Bad Request: {err:?}"))
+            }
+            ClientErrorKind::HttpForbidden(err) => {
+                f.write_fmt(format_args!("API Error: Forbidden: {err:?}"))
+            }
+            ClientErrorKind::HttpRateLimited => f.write_str("API Error: Rate Limited"),
+            ClientErrorKind::HttpInternalServerError(err) => {
+                f.write_fmt(format_args!("API Error: Internal Server Error: {err:?}"))
+            }
+            ClientErrorKind::HttpUnauthorized(err) => {
+                f.write_fmt(format_args!("API Error: Unauthorized: {err:?}"))
+            }
         }
     }
 }
@@ -56,6 +73,16 @@ impl From<ExecuteEndpointRequestError> for Error {
             }
             ExecuteEndpointRequestError::ResponseNotOk(response) => {
                 ClientErrorKind::HttpStatusNotOk(response)
+            }
+            ExecuteEndpointRequestError::NotFound(err) => ClientErrorKind::HttpNotFound(err),
+            ExecuteEndpointRequestError::BadRequest(err) => ClientErrorKind::HttpBadRequest(err),
+            ExecuteEndpointRequestError::Forbidden(err) => ClientErrorKind::HttpForbidden(err),
+            ExecuteEndpointRequestError::RateLimited => ClientErrorKind::HttpRateLimited,
+            ExecuteEndpointRequestError::InternalServerError(err) => {
+                ClientErrorKind::HttpInternalServerError(err)
+            }
+            ExecuteEndpointRequestError::Unauthorized(err) => {
+                ClientErrorKind::HttpUnauthorized(err)
             }
         })
     }
@@ -76,6 +103,12 @@ pub enum ClientErrorKind {
     SessionInvalidated,
     HttpRequestError(reqwest::Error),
     HttpStatusNotOk(reqwest::Response),
+    HttpRateLimited,
+    HttpBadRequest(ApiErrorResponse),
+    HttpUnauthorized(ApiErrorResponse),
+    HttpForbidden(ApiErrorResponse),
+    HttpNotFound(ApiErrorResponse),
+    HttpInternalServerError(ApiErrorResponse),
 }
 
 impl From<tungstenite::Error> for Error {

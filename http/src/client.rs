@@ -1,3 +1,5 @@
+use reqwest::StatusCode;
+use serde_json::Deserializer;
 use zeroize::Zeroizing;
 
 use crate::{
@@ -42,88 +44,58 @@ impl HttpClient {
         let request = endpoint.into_request();
         let response = request.execute(self).await?;
         tracing::trace!("API response: {:?}", response);
-        // TODO: Check for errors here
-        let body = response.bytes().await?.to_vec();
-        tracing::trace!("API response body: {:?}", body);
-        ResponseBody::deserialize(body)
+
+        match response.status() {
+            StatusCode::OK | StatusCode::NO_CONTENT => {
+                let body = response.bytes().await?.to_vec();
+                tracing::trace!("API response body: {:?}", body);
+                ResponseBody::deserialize(body)
+            }
+            StatusCode::BAD_REQUEST => {
+                let body = String::from_utf8(response.bytes().await?.to_vec())
+                    .map_err(|e| Box::new(ExecuteEndpointRequestError::NonUtf8Bytes(e)))?;
+                let mut deserializer = Deserializer::from_str(&body);
+                let api_error = serde_path_to_error::deserialize(&mut deserializer)?;
+                Err(Box::new(ExecuteEndpointRequestError::BadRequest(api_error)))
+            }
+            StatusCode::UNAUTHORIZED => {
+                let body = String::from_utf8(response.bytes().await?.to_vec())
+                    .map_err(|e| Box::new(ExecuteEndpointRequestError::NonUtf8Bytes(e)))?;
+                let mut deserializer = Deserializer::from_str(&body);
+                let api_error = serde_path_to_error::deserialize(&mut deserializer)?;
+                Err(Box::new(ExecuteEndpointRequestError::Unauthorized(
+                    api_error,
+                )))
+            }
+            StatusCode::NOT_FOUND => {
+                let body = String::from_utf8(response.bytes().await?.to_vec())
+                    .map_err(|e| Box::new(ExecuteEndpointRequestError::NonUtf8Bytes(e)))?;
+                let mut deserializer = Deserializer::from_str(&body);
+                let api_error = serde_path_to_error::deserialize(&mut deserializer)?;
+                Err(Box::new(ExecuteEndpointRequestError::NotFound(api_error)))
+            }
+            StatusCode::FORBIDDEN => {
+                let body = String::from_utf8(response.bytes().await?.to_vec())
+                    .map_err(|e| Box::new(ExecuteEndpointRequestError::NonUtf8Bytes(e)))?;
+                let mut deserializer = Deserializer::from_str(&body);
+                let api_error = serde_path_to_error::deserialize(&mut deserializer)?;
+                Err(Box::new(ExecuteEndpointRequestError::Forbidden(api_error)))
+            }
+            StatusCode::INTERNAL_SERVER_ERROR => {
+                let body = String::from_utf8(response.bytes().await?.to_vec())
+                    .map_err(|e| Box::new(ExecuteEndpointRequestError::NonUtf8Bytes(e)))?;
+                let mut deserializer = Deserializer::from_str(&body);
+                let api_error = serde_path_to_error::deserialize(&mut deserializer)?;
+                Err(Box::new(ExecuteEndpointRequestError::InternalServerError(
+                    api_error,
+                )))
+            }
+            StatusCode::TOO_MANY_REQUESTS => {
+                Err(Box::new(ExecuteEndpointRequestError::RateLimited))
+            }
+            _ => Err(Box::new(ExecuteEndpointRequestError::ResponseNotOk(
+                response,
+            ))),
+        }
     }
-    /*
-        #[builder]
-        pub async fn create_message(
-            &self,
-            channel_id: Id<ChannelMarker>,
-            body: &CreateMessageBody,
-        ) -> Result<Response, Error> {
-            let body = serde_json::to_string(body).unwrap();
-
-            let mut req = Request::from_route(&Route::CreateMessage { channel_id });
-            req.body = Some(body.as_bytes().to_vec());
-
-            req.execute(self).await
-        }
-
-        #[builder]
-        pub async fn add_reaction(
-            &self,
-            channel_id: Id<ChannelMarker>,
-            message_id: Id<MessageMarker>,
-            /// For default emojis, this should be the unicode emoji.
-            #[builder(into)]
-            emoji: RequestReactionType<'_>,
-        ) -> Result<Response, Error> {
-            let req = Request::from_route(&Route::CreateReaction {
-                channel_id,
-                emoji: &emoji,
-                message_id,
-            });
-            req.execute(self).await
-        }
-
-        #[builder]
-        pub async fn remove_own_reaction(
-            &self,
-            channel_id: Id<ChannelMarker>,
-            message_id: Id<MessageMarker>,
-            /// For default emojis, this should be the unicode emoji.
-            #[builder(into)]
-            emoji: RequestReactionType<'_>,
-        ) -> Result<Response, Error> {
-            let req = Request::from_route(&Route::RemoveOwnReaction {
-                channel_id,
-                emoji: &emoji,
-                message_id,
-            });
-            req.execute(self).await
-        }
-
-        #[builder]
-        pub async fn remove_all_reactions(
-            &self,
-            channel_id: Id<ChannelMarker>,
-            message_id: Id<MessageMarker>,
-        ) -> Result<Response, Error> {
-            let req = Request::from_route(&Route::RemoveAllReactions {
-                channel_id,
-                message_id,
-            });
-            req.execute(self).await
-        }
-
-        #[builder]
-        pub async fn list_reactions(
-            &self,
-            channel_id: Id<ChannelMarker>,
-            message_id: Id<MessageMarker>,
-            /// For default emojis, this should be the unicode emoji.
-            #[builder(into)]
-            emoji: RequestReactionType<'_>,
-        ) -> Result<Response, Error> {
-            let req = Request::from_route(&Route::ListReactionsForEmoji {
-                channel_id,
-                message_id,
-                emoji: &emoji,
-            });
-            req.execute(self).await
-        }
-    */
 }
