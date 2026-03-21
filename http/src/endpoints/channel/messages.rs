@@ -1,8 +1,11 @@
+#[cfg(feature = "user_api")]
+pub mod acknowledge_message;
 pub mod allowed_mentions;
 pub mod attachment;
 pub mod bulk_delete_messages;
 pub mod create_message;
 pub mod delete_message;
+pub mod delete_message_attachment;
 pub mod edit_message;
 pub mod fetch_message;
 pub mod list_channel_messages;

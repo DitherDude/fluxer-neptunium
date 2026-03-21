@@ -22,7 +22,6 @@ marker! {
     StickerMarker,
     RoleMarker,
     WebhookMarker,
-    AttachmentMarker,
     AuditLogEntryMarker,
     PackMarker,
     RelationshipMarker,

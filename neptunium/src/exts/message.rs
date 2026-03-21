@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use neptunium_model::{
     channel::message::Message,
-    id::{Id, marker::UserMarker},
+    id::{AttachmentId, Id, marker::UserMarker},
 };
 
 use crate::{client::error::Error, events::context::Context};
@@ -9,6 +9,7 @@ use crate::{client::error::Error, events::context::Context};
 use neptunium_http::endpoints::channel::messages::{
     create_message::{CreateMessage, CreateMessageBody},
     delete_message::DeleteMessage,
+    delete_message_attachment::DeleteMessageAttachment,
     edit_message::{EditMessage, EditMessageUpdates},
     fetch_message::FetchMessage,
     message_reference::MessageReference,
@@ -63,6 +64,25 @@ pub trait MessageExt {
 
     /// Re-fetches this message and returns the result.
     async fn fetch(&self, ctx: &Context) -> Result<Message, Error>;
+
+    /// Mark the message as read.
+    #[cfg(feature = "user_api")]
+    async fn acknowledge(&self, ctx: &Context) -> Result<(), Error>;
+
+    /// Mark the message as read.
+    #[cfg(feature = "user_api")]
+    async fn acknowledge_with_options(
+        &self,
+        ctx: &Context,
+        mention_count: Option<u64>,
+        manual: Option<bool>,
+    ) -> Result<(), Error>;
+
+    async fn delete_attachment(
+        &self,
+        ctx: &Context,
+        attachment_id: AttachmentId,
+    ) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -206,6 +226,56 @@ impl MessageExt for Message {
                     .channel_id(self.channel_id)
                     .build(),
             )
+            .await?)
+    }
+
+    #[cfg(feature = "user_api")]
+    async fn acknowledge(&self, ctx: &Context) -> Result<(), Error> {
+        use neptunium_http::endpoints::channel::messages::acknowledge_message::AcknowledgeMessage;
+
+        Ok(ctx
+            .http_client
+            .execute(
+                AcknowledgeMessage::builder()
+                    .message_id(self.id)
+                    .channel_id(self.channel_id)
+                    .build(),
+            )
+            .await?)
+    }
+
+    #[cfg(feature = "user_api")]
+    async fn acknowledge_with_options(
+        &self,
+        ctx: &Context,
+        mention_count: Option<u64>,
+        manual: Option<bool>,
+    ) -> Result<(), Error> {
+        use neptunium_http::endpoints::channel::messages::acknowledge_message::AcknowledgeMessage;
+
+        Ok(ctx
+            .http_client
+            .execute(AcknowledgeMessage {
+                message_id: self.id,
+                channel_id: self.channel_id,
+                mention_count,
+                manual,
+            })
+            .await?)
+    }
+
+    async fn delete_attachment(
+        &self,
+        ctx: &Context,
+        attachment_id: AttachmentId,
+    ) -> Result<(), Error> {
+        Ok(ctx
+            .http_client
+            .execute(DeleteMessageAttachment {
+                channel_id: self.channel_id,
+                message_id: self.id,
+                attachment_id,
+            })
             .await?)
     }
 }
