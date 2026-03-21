@@ -11,6 +11,8 @@ pub mod fetch_message;
 pub mod list_channel_messages;
 pub mod list_pinned_messages;
 pub mod message_reference;
+pub mod pin_message;
 pub mod reactions;
 #[cfg(feature = "user_api")]
 pub mod schedule_message;
+pub mod unpin_message;

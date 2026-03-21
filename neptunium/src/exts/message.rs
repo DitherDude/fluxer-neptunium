@@ -13,10 +13,12 @@ use neptunium_http::endpoints::channel::messages::{
     edit_message::{EditMessage, EditMessageUpdates},
     fetch_message::FetchMessage,
     message_reference::MessageReference,
+    pin_message::PinMessage,
     reactions::{
         AddReaction, DeleteAllReactions, DeleteAllReactionsOfEmoji, DeleteOwnReaction,
         DeleteReaction,
     },
+    unpin_message::UnpinMessage,
 };
 
 pub use neptunium_http::endpoints::channel::messages::reactions::RequestReactionType as Reaction;
@@ -83,6 +85,9 @@ pub trait MessageExt {
         ctx: &Context,
         attachment_id: AttachmentId,
     ) -> Result<(), Error>;
+
+    async fn pin(&self, ctx: &Context) -> Result<(), Error>;
+    async fn unpin(&self, ctx: &Context) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -275,6 +280,26 @@ impl MessageExt for Message {
                 channel_id: self.channel_id,
                 message_id: self.id,
                 attachment_id,
+            })
+            .await?)
+    }
+
+    async fn pin(&self, ctx: &Context) -> Result<(), Error> {
+        Ok(ctx
+            .http_client
+            .execute(PinMessage {
+                channel_id: self.channel_id,
+                message_id: self.id,
+            })
+            .await?)
+    }
+
+    async fn unpin(&self, ctx: &Context) -> Result<(), Error> {
+        Ok(ctx
+            .http_client
+            .execute(UnpinMessage {
+                channel_id: self.channel_id,
+                message_id: self.id,
             })
             .await?)
     }

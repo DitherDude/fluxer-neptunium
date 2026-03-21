@@ -1,14 +1,18 @@
 use async_trait::async_trait;
 use neptunium_http::endpoints::channel::{
+    add_user_to_group_dm::AddUserToGroupDm,
     delete_channel::DeleteChannel,
     delete_permission_overwrite::DeletePermissionOverwrite,
     fetch_channel::FetchChannel,
     get_call_eligibility_status::{CallEligibilityStatus, GetCallEligibilityStatus},
+    indicate_typing::IndicateTyping,
+    list_rtc_regions::{ListRtcRegions, ListRtcRegionsResponseEntry},
     messages::{
         bulk_delete_messages::BulkDeleteMessages,
         create_message::{CreateMessage, CreateMessageBody},
         list_channel_messages::{ListChannelMessages, ListChannelMessagesParams},
     },
+    remove_user_from_group_dm::RemoveUserFromGroupDm,
     ring_call_recipients::RingCallRecipients,
     set_permission_overwrite::{PermissionOverwriteUpdate, SetPermissionOverwrite},
     stop_ringing_call_recipients::StopRingingCallRecipients,
@@ -91,6 +95,27 @@ pub trait ChannelExt {
         ctx: &Context,
         overwrite_id: Id<GenericMarker>,
     ) -> Result<(), Error>;
+    #[cfg(feature = "user_api")]
+    async fn acknowledge_new_pin_notifications(&self, ctx: &Context) -> Result<(), Error>;
+    async fn add_user_to_group_dm(
+        &self,
+        ctx: &Context,
+        user_id: Id<UserMarker>,
+    ) -> Result<(), Error>;
+    /// Remove a user from a group DM or leave a group DM by specifying
+    /// your own user ID. Set `silent` to `true` to suppress the system
+    /// message when leaving.
+    async fn remove_user_from_group_dm(
+        &self,
+        ctx: &Context,
+        user_id: Id<UserMarker>,
+        silent: bool,
+    ) -> Result<(), Error>;
+    async fn list_rtc_regions(
+        &self,
+        ctx: &Context,
+    ) -> Result<Vec<ListRtcRegionsResponseEntry>, Error>;
+    async fn indicate_typing(&self, ctx: &Context) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -105,6 +130,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn delete_silent(&self, ctx: &Context) -> Result<(), Error> {
         Ok(ctx
             .get_http_client()
@@ -116,6 +142,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn update_settings(
         &self,
         ctx: &Context,
@@ -131,6 +158,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn fetch(&self, ctx: &Context) -> Result<Channel, Error> {
         Ok(ctx
             .get_http_client()
@@ -141,6 +169,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn get_call_eligibility_status(
         &self,
         ctx: &Context,
@@ -154,6 +183,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn update_call_region(&self, ctx: &Context, region: VoiceRegion) -> Result<(), Error> {
         Ok(ctx
             .get_http_client()
@@ -165,6 +195,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn ring_call_recipients(
         &self,
         ctx: &Context,
@@ -180,6 +211,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn stop_ringing_call_recipients(
         &self,
         ctx: &Context,
@@ -195,6 +227,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn list_messages(
         &self,
         ctx: &Context,
@@ -210,6 +243,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn bulk_delete_messages(
         &self,
         ctx: &Context,
@@ -225,6 +259,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn send_message(
         &self,
         ctx: &Context,
@@ -232,6 +267,7 @@ impl<T: ChannelTrait> ChannelExt for T {
     ) -> Result<Message, Error> {
         self.create_message(ctx, message).await
     }
+
     async fn create_message(
         &self,
         ctx: &Context,
@@ -247,6 +283,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             )
             .await?)
     }
+
     async fn set_permission_overwrite(
         &self,
         ctx: &Context,
@@ -260,6 +297,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             })
             .await?)
     }
+
     async fn delete_permission_overwrite(
         &self,
         ctx: &Context,
@@ -270,6 +308,69 @@ impl<T: ChannelTrait> ChannelExt for T {
             .execute(DeletePermissionOverwrite {
                 channel_id: self.get_channel_id(),
                 overwrite_id,
+            })
+            .await?)
+    }
+
+    #[cfg(feature = "user_api")]
+    async fn acknowledge_new_pin_notifications(&self, ctx: &Context) -> Result<(), Error> {
+        use neptunium_http::endpoints::channel::acknowledge_new_pin_notifications::AcknowledgeNewPinNotifications;
+
+        Ok(ctx
+            .get_http_client()
+            .execute(AcknowledgeNewPinNotifications {
+                channel_id: self.get_channel_id(),
+            })
+            .await?)
+    }
+
+    async fn add_user_to_group_dm(
+        &self,
+        ctx: &Context,
+        user_id: Id<UserMarker>,
+    ) -> Result<(), Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(AddUserToGroupDm {
+                channel_id: self.get_channel_id(),
+                user_id,
+            })
+            .await?)
+    }
+
+    async fn remove_user_from_group_dm(
+        &self,
+        ctx: &Context,
+        user_id: Id<UserMarker>,
+        silent: bool,
+    ) -> Result<(), Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(RemoveUserFromGroupDm {
+                channel_id: self.get_channel_id(),
+                user_id,
+                silent,
+            })
+            .await?)
+    }
+
+    async fn list_rtc_regions(
+        &self,
+        ctx: &Context,
+    ) -> Result<Vec<ListRtcRegionsResponseEntry>, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(ListRtcRegions {
+                channel_id: self.get_channel_id(),
+            })
+            .await?)
+    }
+
+    async fn indicate_typing(&self, ctx: &Context) -> Result<(), Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(IndicateTyping {
+                channel_id: self.get_channel_id(),
             })
             .await?)
     }

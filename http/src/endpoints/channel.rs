@@ -1,14 +1,23 @@
 pub mod messages;
 
 #[cfg(feature = "user_api")]
+pub mod acknowledge_new_pin_notifications;
+pub mod add_user_to_group_dm;
+#[cfg(feature = "user_api")]
 pub mod clear_channel_read_state;
 pub mod delete_channel;
 pub mod delete_permission_overwrite;
 pub mod end_call_session;
 pub mod fetch_channel;
 pub mod get_call_eligibility_status;
+pub mod get_stream_preview_image;
+pub mod indicate_typing;
+pub mod list_rtc_regions;
+pub mod remove_user_from_group_dm;
 pub mod ring_call_recipients;
 pub mod set_permission_overwrite;
 pub mod stop_ringing_call_recipients;
 pub mod update_call_region;
 pub mod update_channel_settings;
+pub mod update_stream_region;
+pub mod upload_stream_preview_image;
