@@ -9,6 +9,7 @@ use crate::{
 
 pub mod channel;
 pub mod guild;
+pub mod invites;
 pub mod meta;
 
 impl<T: DeserializeOwned> ResponseBody for T {

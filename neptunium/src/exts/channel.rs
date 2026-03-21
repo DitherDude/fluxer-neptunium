@@ -1,23 +1,29 @@
 use async_trait::async_trait;
-use neptunium_http::endpoints::channel::{
-    add_user_to_group_dm::AddUserToGroupDm,
-    delete_channel::DeleteChannel,
-    delete_permission_overwrite::DeletePermissionOverwrite,
-    fetch_channel::FetchChannel,
-    get_call_eligibility_status::{CallEligibilityStatus, GetCallEligibilityStatus},
-    indicate_typing::IndicateTyping,
-    list_rtc_regions::{ListRtcRegions, ListRtcRegionsResponseEntry},
-    messages::{
-        bulk_delete_messages::BulkDeleteMessages,
-        create_message::{CreateMessage, CreateMessageBody},
-        list_channel_messages::{ListChannelMessages, ListChannelMessagesParams},
+use neptunium_http::endpoints::{
+    channel::{
+        add_user_to_group_dm::AddUserToGroupDm,
+        delete_channel::DeleteChannel,
+        delete_permission_overwrite::DeletePermissionOverwrite,
+        fetch_channel::FetchChannel,
+        get_call_eligibility_status::{CallEligibilityStatus, GetCallEligibilityStatus},
+        indicate_typing::IndicateTyping,
+        list_rtc_regions::{ListRtcRegions, ListRtcRegionsResponseEntry},
+        messages::{
+            bulk_delete_messages::BulkDeleteMessages,
+            create_message::{CreateMessage, CreateMessageBody},
+            list_channel_messages::{ListChannelMessages, ListChannelMessagesParams},
+        },
+        remove_user_from_group_dm::RemoveUserFromGroupDm,
+        ring_call_recipients::RingCallRecipients,
+        set_permission_overwrite::{PermissionOverwriteUpdate, SetPermissionOverwrite},
+        stop_ringing_call_recipients::StopRingingCallRecipients,
+        update_call_region::UpdateCallRegion,
+        update_channel_settings::{ChannelSettingsUpdates, UpdateChannelSettings},
     },
-    remove_user_from_group_dm::RemoveUserFromGroupDm,
-    ring_call_recipients::RingCallRecipients,
-    set_permission_overwrite::{PermissionOverwriteUpdate, SetPermissionOverwrite},
-    stop_ringing_call_recipients::StopRingingCallRecipients,
-    update_call_region::UpdateCallRegion,
-    update_channel_settings::{ChannelSettingsUpdates, UpdateChannelSettings},
+    invites::{
+        create_channel_invite::{CreateChannelInvite, CreateChannelInviteOptions},
+        list_channel_invites::ListChannelInvites,
+    },
 };
 use neptunium_model::{
     channel::{Channel, VoiceRegion, message::Message},
@@ -25,6 +31,7 @@ use neptunium_model::{
         Id,
         marker::{GenericMarker, MessageMarker, UserMarker},
     },
+    invites::InviteWithMetadata,
 };
 
 use crate::{
@@ -116,6 +123,12 @@ pub trait ChannelExt {
         ctx: &Context,
     ) -> Result<Vec<ListRtcRegionsResponseEntry>, Error>;
     async fn indicate_typing(&self, ctx: &Context) -> Result<(), Error>;
+    async fn create_invite(
+        &self,
+        ctx: &Context,
+        options: CreateChannelInviteOptions,
+    ) -> Result<InviteWithMetadata, Error>;
+    async fn list_invites(&self, ctx: &Context) -> Result<Vec<InviteWithMetadata>, Error>;
 }
 
 #[async_trait]
@@ -370,6 +383,29 @@ impl<T: ChannelTrait> ChannelExt for T {
         Ok(ctx
             .get_http_client()
             .execute(IndicateTyping {
+                channel_id: self.get_channel_id(),
+            })
+            .await?)
+    }
+
+    async fn create_invite(
+        &self,
+        ctx: &Context,
+        options: CreateChannelInviteOptions,
+    ) -> Result<InviteWithMetadata, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(CreateChannelInvite {
+                channel_id: self.get_channel_id(),
+                options,
+            })
+            .await?)
+    }
+
+    async fn list_invites(&self, ctx: &Context) -> Result<Vec<InviteWithMetadata>, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(ListChannelInvites {
                 channel_id: self.get_channel_id(),
             })
             .await?)
