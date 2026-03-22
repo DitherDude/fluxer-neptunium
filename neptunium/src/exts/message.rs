@@ -5,7 +5,7 @@ use neptunium_model::{
     channel::message::Message,
     id::{
         Id,
-        marker::{AttachmentMarker, UserMarker},
+        marker::{AttachmentMarker, ChannelMarker, MessageMarker, UserMarker},
     },
 };
 
@@ -305,6 +305,24 @@ impl MessageExt for Message {
             .execute(UnpinMessage {
                 channel_id: self.channel_id,
                 message_id: self.id,
+            })
+            .await?)
+    }
+}
+
+#[async_trait]
+pub trait MessageIdExt {
+    async fn fetch(&self, ctx: &Context, channel_id: Id<ChannelMarker>) -> Result<Message, Error>;
+}
+
+#[async_trait]
+impl MessageIdExt for Id<MessageMarker> {
+    async fn fetch(&self, ctx: &Context, channel_id: Id<ChannelMarker>) -> Result<Message, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(FetchMessage {
+                channel_id,
+                message_id: *self,
             })
             .await?)
     }
