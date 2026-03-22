@@ -1,6 +1,7 @@
 use std::ops::{Deref, DerefMut};
 
 use bitflags::bitflags;
+use bon::Builder;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
     },
 };
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct MessageEmbed {
     #[serde(flatten)]
     pub base: MessageEmbedBase,
@@ -59,13 +60,16 @@ impl<'de> Deserialize<'de> for EmbedMediaFlags {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct EmbedMedia {
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_hash: Option<String>,
     /// The MIME type of the media.
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub content_type: Option<String>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -73,34 +77,43 @@ pub struct EmbedMedia {
     pub flags: EmbedMediaFlags,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub height: Option<u32>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub placeholder: Option<String>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proxy_url: Option<String>,
+    #[builder(into)]
     pub url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<u32>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct EmbedAuthor {
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub icon_url: Option<String>,
+    #[builder(into)]
     pub name: String,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub proxy_icon_url: Option<String>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct EmbedField {
     pub inline: bool,
+    #[builder(into)]
     pub name: String,
+    #[builder(into)]
     pub value: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct EmbedChild {
     #[serde(flatten)]
     pub base: MessageEmbedBase,
@@ -119,16 +132,20 @@ impl DerefMut for EmbedChild {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct EmbedFooter {
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     icon_url: Option<String>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     proxy_icon_url: Option<String>,
+    #[builder(into)]
     text: String,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[expect(clippy::doc_markdown)]
+#[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct MessageEmbedBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub audio: Option<EmbedMedia>,
@@ -136,6 +153,7 @@ pub struct MessageEmbedBase {
     pub author: Option<EmbedAuthor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<HexColor32>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -144,9 +162,9 @@ pub struct MessageEmbedBase {
     pub footer: Option<EmbedFooter>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub image: Option<EmbedMedia>,
+    #[builder(default = false)]
     #[serde(default)]
     pub nsfw: bool,
-    #[expect(clippy::doc_markdown)]
     /// The provider (e.g. YouTube, Twitter).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<EmbedAuthor>,
@@ -154,11 +172,14 @@ pub struct MessageEmbedBase {
     pub thumbnail: Option<EmbedMedia>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<Timestamp<Iso8601>>,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<String>,
     /// The type of embed (e.g., rich, image, video, gifv, article, link).
+    #[builder(into, default = "rich".to_owned())]
     #[serde(rename = "type")]
     pub r#type: String,
+    #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub url: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -16,6 +16,8 @@ This is the current support for different APIs (Categories named after [The offi
 
 ✅ = Fully supported
 
+☑️ = Almost all use cases covered
+
 🟡 = Partially supported / In progress
 
 ❌ = Not (yet) supported
@@ -27,7 +29,7 @@ This is the current support for different APIs (Categories named after [The offi
 - Channels ✅
 - Invites ✅
 - Saved Media ✅
-- Webhooks 🟡
+- Webhooks ☑️ (GitHub, Sentry, and Slack webhooks are not yet implemented)
 - Discovery ❌
 - Donations ❌
 - Gateway (API gateway info endpoint) ❌

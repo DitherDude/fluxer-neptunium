@@ -23,6 +23,7 @@ pub mod explicit_content_filter;
 pub mod member;
 pub mod permissions;
 pub mod properties;
+pub mod webhook;
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 pub struct GuildProperties {

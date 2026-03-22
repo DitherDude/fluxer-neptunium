@@ -64,6 +64,9 @@ impl std::fmt::Display for Error {
             ClientErrorKind::HttpUnauthorized(err) => {
                 f.write_fmt(format_args!("API Error: Unauthorized: {err:?}"))
             }
+            ClientErrorKind::HttpInvalidResponse(s) => {
+                f.write_fmt(format_args!("API Error: Invalid response: {s}"))
+            }
         }
     }
 }
@@ -114,6 +117,7 @@ pub enum ClientErrorKind {
     HttpForbidden(ApiErrorResponse),
     HttpNotFound(ApiErrorResponse),
     HttpInternalServerError(ApiErrorResponse),
+    HttpInvalidResponse(String),
 }
 
 impl From<tungstenite::Error> for Error {

@@ -24,9 +24,11 @@ use neptunium_http::endpoints::{
         create_channel_invite::{CreateChannelInvite, CreateChannelInviteOptions},
         list_channel_invites::ListChannelInvites,
     },
+    webhooks::{create_webhook::CreateWebhook, list_channel_webhooks::ListChannelWebhooks},
 };
 use neptunium_model::{
     channel::{Channel, VoiceRegion, message::Message},
+    guild::webhook::Webhook,
     id::{
         Id,
         marker::{GenericMarker, MessageMarker, UserMarker},
@@ -129,6 +131,14 @@ pub trait ChannelExt {
         options: CreateChannelInviteOptions,
     ) -> Result<InviteWithMetadata, Error>;
     async fn list_invites(&self, ctx: &Context) -> Result<Vec<InviteWithMetadata>, Error>;
+    async fn list_webhooks(&self, ctx: &Context) -> Result<Vec<Webhook>, Error>;
+    /// Create a webhook in this channel, with the given name and optionally the avatar image as a base64-encoded data URI.
+    async fn create_webhook(
+        &self,
+        ctx: &Context,
+        name: String,
+        avatar: Option<String>,
+    ) -> Result<Webhook, Error>;
 }
 
 #[async_trait]
@@ -407,6 +417,31 @@ impl<T: ChannelTrait> ChannelExt for T {
             .get_http_client()
             .execute(ListChannelInvites {
                 channel_id: self.get_channel_id(),
+            })
+            .await?)
+    }
+
+    async fn list_webhooks(&self, ctx: &Context) -> Result<Vec<Webhook>, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(ListChannelWebhooks {
+                channel_id: self.get_channel_id(),
+            })
+            .await?)
+    }
+
+    async fn create_webhook(
+        &self,
+        ctx: &Context,
+        name: String,
+        avatar: Option<String>,
+    ) -> Result<Webhook, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(CreateWebhook {
+                channel_id: self.get_channel_id(),
+                name,
+                avatar,
             })
             .await?)
     }

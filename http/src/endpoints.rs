@@ -13,6 +13,7 @@ pub mod invites;
 pub mod meta;
 #[cfg(feature = "user_api")]
 pub mod saved_media;
+pub mod webhooks;
 
 impl<T: DeserializeOwned> ResponseBody for T {
     fn deserialize(bytes: Vec<u8>) -> Result<Self, Box<ExecuteEndpointRequestError>> {
