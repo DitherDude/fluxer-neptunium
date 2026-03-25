@@ -1,5 +1,13 @@
+pub mod add_role_to_guild_member;
 pub mod ban_guild_member;
+pub mod get_current_user_guild_member;
+pub mod get_guild_member;
+pub mod kick_guild_member;
 pub mod list_guild_members;
+pub mod remove_role_from_member;
 #[cfg(feature = "user_api")]
 pub mod search_guild_members;
 pub mod unban_guild_member;
+#[cfg(feature = "user_api")]
+pub mod update_current_user_guild_member;
+pub mod update_guild_member;

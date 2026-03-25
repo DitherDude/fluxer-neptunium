@@ -12,10 +12,17 @@ use neptunium_http::endpoints::{
         list_guild_audit_logs::{ListGuildAuditLogs, ListGuildAuditLogsParams},
         list_guild_bans::ListGuildBans,
         members::{
+            add_role_to_guild_member::AddRoleToGuildMember,
             ban_guild_member::{BanGuildMember, BanGuildMemberBody},
+            get_current_user_guild_member::GetCurrentUserGuildMember,
+            get_guild_member::GetGuildMember,
+            kick_guild_member::KickGuildMember,
             list_guild_members::ListGuildMembers,
+            remove_role_from_member::RemoveRoleFromGuildMember,
             unban_guild_member::UnbanGuildMember,
+            update_guild_member::{UpdateGuildMember, UpdateGuildMemberBody},
         },
+        roles::list_guild_roles::ListGuildRoles,
         toggle_detached_banner::ToggleDetachedBanner,
     },
     invites::list_guild_invites::ListGuildInvites,
@@ -25,9 +32,12 @@ use neptunium_model::{
     channel::Channel,
     guild::{
         Guild, audit_log::GuildAuditLogs, bans::GuildBanListEntry, member::GuildMember,
-        webhook::Webhook,
+        permissions::GuildRole, webhook::Webhook,
     },
-    id::{Id, marker::UserMarker},
+    id::{
+        Id,
+        marker::{RoleMarker, UserMarker},
+    },
     invites::InviteWithMetadata,
 };
 
@@ -86,6 +96,39 @@ pub trait GuildExt {
         neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembersResponse,
         Error,
     >;
+    /// Get the authenticated bot/user as the guild member.
+    async fn get_current_member(&self, ctx: &Context) -> Result<GuildMember, Error>;
+    #[cfg(feature = "user_api")]
+    async fn update_current_member(
+        &self,
+        ctx: &Context,
+        updates: neptunium_http::endpoints::guild::members::update_current_user_guild_member::UpdateCurrentUserGuildMemberBody,
+    ) -> Result<GuildMember, Error>;
+    async fn get_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+    ) -> Result<GuildMember, Error>;
+    async fn kick_member(&self, ctx: &Context, member_id: Id<UserMarker>) -> Result<(), Error>;
+    async fn update_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+        body: UpdateGuildMemberBody,
+    ) -> Result<GuildMember, Error>;
+    async fn add_role_to_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+        role_id: Id<RoleMarker>,
+    ) -> Result<(), Error>;
+    async fn remove_role_from_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+        role_id: Id<RoleMarker>,
+    ) -> Result<(), Error>;
+    async fn list_roles(&self, ctx: &Context) -> Result<Vec<GuildRole>, Error>;
 }
 
 #[async_trait]
@@ -260,6 +303,113 @@ impl<T: GuildTrait> GuildExt for T {
             .execute(neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembers {
                 guild_id: self.get_guild_id(),
                 body,
+            })
+            .await?)
+    }
+
+    async fn get_current_member(&self, ctx: &Context) -> Result<GuildMember, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(GetCurrentUserGuildMember {
+                guild_id: self.get_guild_id(),
+            })
+            .await?)
+    }
+
+    #[cfg(feature = "user_api")]
+    async fn update_current_member(
+        &self,
+        ctx: &Context,
+        updates: neptunium_http::endpoints::guild::members::update_current_user_guild_member::UpdateCurrentUserGuildMemberBody,
+    ) -> Result<GuildMember, Error> {
+        use neptunium_http::endpoints::guild::members::update_current_user_guild_member::UpdateCurrentUserGuildMember;
+
+        Ok(ctx
+            .get_http_client()
+            .execute(UpdateCurrentUserGuildMember {
+                guild_id: self.get_guild_id(),
+                body: updates,
+            })
+            .await?)
+    }
+
+    async fn get_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+    ) -> Result<GuildMember, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(GetGuildMember {
+                guild_id: self.get_guild_id(),
+                user_id: member_id,
+            })
+            .await?)
+    }
+
+    async fn kick_member(&self, ctx: &Context, member_id: Id<UserMarker>) -> Result<(), Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(KickGuildMember {
+                guild_id: self.get_guild_id(),
+                user_id: member_id,
+            })
+            .await?)
+    }
+
+    async fn update_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+        body: UpdateGuildMemberBody,
+    ) -> Result<GuildMember, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(UpdateGuildMember {
+                guild_id: self.get_guild_id(),
+                user_id: member_id,
+                body,
+            })
+            .await?)
+    }
+
+    async fn add_role_to_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+        role_id: Id<RoleMarker>,
+    ) -> Result<(), Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(AddRoleToGuildMember {
+                guild_id: self.get_guild_id(),
+                user_id: member_id,
+                role_id,
+            })
+            .await?)
+    }
+
+    async fn remove_role_from_member(
+        &self,
+        ctx: &Context,
+        member_id: Id<UserMarker>,
+        role_id: Id<RoleMarker>,
+    ) -> Result<(), Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(RemoveRoleFromGuildMember {
+                guild_id: self.get_guild_id(),
+                user_id: member_id,
+                role_id,
+            })
+            .await?)
+    }
+
+    async fn list_roles(&self, ctx: &Context) -> Result<Vec<GuildRole>, Error> {
+        Ok(ctx
+            .get_http_client()
+            .execute(ListGuildRoles {
+                guild_id: self.get_guild_id(),
             })
             .await?)
     }
