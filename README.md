@@ -2,6 +2,8 @@
 
 A collection of crates for interacting with the Fluxer API and gateway. The crate which most bot creators will be interested in is `fluxer-neptunium` (which is a bot framework).
 
+Fluxer-neptunium supports user-bots too! Enable the `user_api` feature and look at the `user-bot` example to see how to let fluxer-neptunium know that your token is a user token. User bots are allowed on Fluxer as long as they don't spam.
+
 **This is a work-in-progress! Check [#Coverage](#coverage).**
 
 Support & Development community on Fluxer: https://fluxer.gg/R67sLSVp
@@ -23,7 +25,7 @@ To run the `user-bot` example, you need to specify `FLUXER_USER_TOKEN` instead.
 Note that many of the APIs are user-only, so not interesting for bots. While this crate aims to support everything in the API eventually, it is mainly intended to be used for bots, which is why the bot-usable APIs are prioritized.
 - **Gateway:**
   - **Bot Gateway:** 100% (make an issue if something is missing)
-  - **User Gateway:** Most things are the same, but I haven't looked at it exactly, likely more than 90% (e.g. PASSIVE_UPDATES missing, which is non-bot users only)
+  - **User Gateway:** 100% (afaik)
 - **HTTP API:** Maybe like 60-75% of the bot API — I'm working on it
   - Rate limiting is not yet implemented either, sorry :(
 
