@@ -444,6 +444,14 @@ pub trait EventHandler: Send {
     async fn on_call_delete(&self, ctx: Context, data: Arc<CallDelete>) -> Result<(), EventError> {
         Ok(())
     }
+    #[cfg(feature = "user_api")]
+    async fn on_passive_updates(
+        &self,
+        ctx: Context,
+        data: Arc<neptunium_model::gateway::payload::incoming::passive_updates::PassiveUpdates>,
+    ) -> Result<(), EventError> {
+        Ok(())
+    }
 }
 
 /// An error returned by an event handler.

@@ -453,6 +453,10 @@ impl Client {
             DispatchEvent::CallDelete(data) => {
                 call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_call_delete);
             }
+            #[cfg(feature = "user_api")]
+            DispatchEvent::PassiveUpdates(data) => {
+                call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_passive_updates);
+            }
         }
         Ok(())
     }

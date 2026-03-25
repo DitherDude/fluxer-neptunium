@@ -135,8 +135,9 @@ pub enum DispatchEvent {
     // TODO: What do you mean all recipients? Like people who have joined the call at least once or something else?
     /// Dispatched to all recipients when the call terminates (all participants leave or timeout).
     CallDelete(CallDelete),
-    // TODO: PASSIVE_UPDATES: https://github.com/fluxerapp/fluxer/blob/refactor/fluxer_app/src/stores/gateway/handlers/guild/PassiveUpdates.tsx#L39
-    // and make a user_api feature for this
+    // Source: https://github.com/fluxerapp/fluxer/blob/refactor/fluxer_app/src/stores/gateway/handlers/guild/PassiveUpdates.tsx#L39
+    #[cfg(feature = "user_api")]
+    PassiveUpdates(crate::gateway::payload::incoming::passive_updates::PassiveUpdates),
 }
 
 #[derive(Deserialize, Clone, Debug)]

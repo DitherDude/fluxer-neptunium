@@ -11,6 +11,8 @@ pub mod invites_events;
 pub mod members_events;
 pub mod message_events;
 pub mod message_reactions_events;
+#[cfg(feature = "user_api")]
+pub mod passive_updates;
 pub mod presence_events;
 pub mod read_state_events;
 pub mod relationship_events;
