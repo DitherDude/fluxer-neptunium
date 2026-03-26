@@ -1,30 +1,15 @@
 use async_trait::async_trait;
 use neptunium_http::endpoints::{
     channel::{
-        add_user_to_group_dm::AddUserToGroupDm,
-        delete_channel::DeleteChannel,
-        delete_permission_overwrite::DeletePermissionOverwrite,
-        fetch_channel::FetchChannel,
-        get_call_eligibility_status::{CallEligibilityStatus, GetCallEligibilityStatus},
-        indicate_typing::IndicateTyping,
-        list_rtc_regions::{ListRtcRegions, ListRtcRegionsResponseEntry},
-        messages::{
-            bulk_delete_messages::BulkDeleteMessages,
-            create_message::{CreateMessage, CreateMessageBody},
-            list_channel_messages::{ListChannelMessages, ListChannelMessagesParams},
-        },
-        remove_user_from_group_dm::RemoveUserFromGroupDm,
-        ring_call_recipients::RingCallRecipients,
-        set_permission_overwrite::{PermissionOverwriteUpdate, SetPermissionOverwrite},
-        stop_ringing_call_recipients::StopRingingCallRecipients,
-        update_call_region::UpdateCallRegion,
-        update_channel_settings::{ChannelSettingsUpdates, UpdateChannelSettings},
+        AddUserToGroupDm, BulkDeleteMessages, CallEligibilityStatus, ChannelSettingsUpdates,
+        CreateMessage, CreateMessageBody, DeleteChannel, DeletePermissionOverwrite, FetchChannel,
+        GetCallEligibilityStatus, IndicateTyping, ListChannelMessages, ListChannelMessagesParams,
+        ListRtcRegions, ListRtcRegionsResponseEntry, RemoveUserFromGroupDm, RingCallRecipients,
+        StopRingingCallRecipients, UpdateCallRegion, UpdateChannelSettings,
+        {PermissionOverwriteUpdate, SetPermissionOverwrite},
     },
-    invites::{
-        create_channel_invite::{CreateChannelInvite, CreateChannelInviteOptions},
-        list_channel_invites::ListChannelInvites,
-    },
-    webhooks::{create_webhook::CreateWebhook, list_channel_webhooks::ListChannelWebhooks},
+    invites::{CreateChannelInvite, CreateChannelInviteOptions, ListChannelInvites},
+    webhooks::{CreateWebhook, ListChannelWebhooks},
 };
 use neptunium_model::{
     channel::{Channel, VoiceRegion, message::Message},
@@ -337,7 +322,7 @@ impl<T: ChannelTrait> ChannelExt for T {
 
     #[cfg(feature = "user_api")]
     async fn acknowledge_new_pin_notifications(&self, ctx: &Context) -> Result<(), Error> {
-        use neptunium_http::endpoints::channel::acknowledge_new_pin_notifications::AcknowledgeNewPinNotifications;
+        use neptunium_http::endpoints::channel::AcknowledgeNewPinNotifications;
 
         Ok(ctx
             .get_http_client()

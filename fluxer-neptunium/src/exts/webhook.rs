@@ -1,11 +1,7 @@
 use async_trait::async_trait;
 use neptunium_http::endpoints::webhooks::{
-    delete_webhook::DeleteWebhook,
-    delete_webhook_with_token::DeleteWebhookWithToken,
-    execute_webhook::{ExecuteWebhook, WebhookMessage},
-    get_webhook::GetWebhook,
-    get_webhook_with_token::{GetWebhookWithToken, GetWebhookWithTokenResponse},
-    update_webhook::{UpdateWebhook, UpdateWebhookBody},
+    DeleteWebhook, DeleteWebhookWithToken, ExecuteWebhook, GetWebhook, GetWebhookWithToken,
+    GetWebhookWithTokenResponse, UpdateWebhook, UpdateWebhookBody, WebhookMessage,
 };
 use neptunium_model::{
     channel::message::Message,

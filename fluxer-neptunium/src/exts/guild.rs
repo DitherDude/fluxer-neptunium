@@ -1,55 +1,22 @@
 use async_trait::async_trait;
 use neptunium_http::endpoints::{
     guild::{
-        channels::{
-            create_guild_channel::{CreateGuildChannel, GuildChannelCreateRequest},
-            list_guild_channels::ListGuildChannels,
-            update_channel_positions::{
-                UpdateGuildChannelPositions, UpdateGuildChannelPositionsEntry,
-            },
-        },
-        get_guild_information::GetGuildInformation,
-        get_guild_vanity_url::{GetGuildVanityUrl, GetGuildVanityUrlResponse},
-        leave_guild::LeaveGuild,
-        list_guild_audit_logs::{ListGuildAuditLogs, ListGuildAuditLogsParams},
-        list_guild_bans::ListGuildBans,
-        members::{
-            add_role_to_guild_member::AddRoleToGuildMember,
-            ban_guild_member::{BanGuildMember, BanGuildMemberBody},
-            get_current_user_guild_member::GetCurrentUserGuildMember,
-            get_guild_member::GetGuildMember,
-            kick_guild_member::KickGuildMember,
-            list_guild_members::ListGuildMembers,
-            remove_role_from_member::RemoveRoleFromGuildMember,
-            unban_guild_member::UnbanGuildMember,
-            update_guild_member::{UpdateGuildMember, UpdateGuildMemberBody},
-        },
-        roles::{
-            create_guild_role::{CreateGuildRole, CreateGuildRoleBody},
-            delete_guild_role::DeleteGuildRole,
-            list_guild_roles::ListGuildRoles,
-            reset_role_hoist_positions::ResetGuildRoleHoistPositions,
-            update_guild_role::{UpdateGuildRole, UpdateGuildRoleBody},
-            update_role_hoist_positions::{
-                UpdateGuildRoleHoistPositions, UpdateGuildRoleHoistPositionsEntry,
-            },
-            update_role_positions::{UpdateGuildRolePositions, UpdateGuildRolePositionsEntry},
-        },
-        stickers::{
-            bulk_create_guild_stickers::{
-                BulkCreateGuildStickers, BulkCreateGuildStickersResponse,
-            },
-            create_guild_sticker::{CreateGuildSticker, CreateGuildStickerBody},
-            delete_guild_sticker::DeleteGuildSticker,
-            list_guild_stickers::ListGuildStickers,
-            update_guild_sticker::{UpdateGuildSticker, UpdateGuildStickerBody},
-        },
-        toggle_detached_banner::ToggleDetachedBanner,
-        toggle_guild_text_channel_flexible_names::ToggleGuildTextChannelFlexibleNames,
-        update_guild_vanity_url::{UpdateGuildVanityUrl, UpdateGuildVanityUrlResponse},
+        AddRoleToGuildMember, BanGuildMember, BanGuildMemberBody, BulkCreateGuildStickers,
+        BulkCreateGuildStickersResponse, CreateGuildChannel, CreateGuildRole, CreateGuildRoleBody,
+        CreateGuildSticker, CreateGuildStickerBody, DeleteGuildRole, DeleteGuildSticker,
+        GetCurrentUserGuildMember, GetGuildInformation, GetGuildMember, GetGuildVanityUrl,
+        GetGuildVanityUrlResponse, GuildChannelCreateRequest, KickGuildMember, LeaveGuild,
+        ListGuildAuditLogs, ListGuildAuditLogsParams, ListGuildBans, ListGuildChannels,
+        ListGuildMembers, ListGuildRoles, ListGuildStickers, RemoveRoleFromGuildMember,
+        ResetGuildRoleHoistPositions, ToggleDetachedBanner, ToggleGuildTextChannelFlexibleNames,
+        UnbanGuildMember, UpdateGuildChannelPositions, UpdateGuildChannelPositionsEntry,
+        UpdateGuildMember, UpdateGuildMemberBody, UpdateGuildRole, UpdateGuildRoleBody,
+        UpdateGuildRoleHoistPositions, UpdateGuildRoleHoistPositionsEntry,
+        UpdateGuildRolePositions, UpdateGuildRolePositionsEntry, UpdateGuildSticker,
+        UpdateGuildStickerBody, UpdateGuildVanityUrl, UpdateGuildVanityUrlResponse,
     },
-    invites::list_guild_invites::ListGuildInvites,
-    webhooks::list_guild_webhooks::ListGuildWebhooks,
+    invites::ListGuildInvites,
+    webhooks::ListGuildWebhooks,
 };
 use neptunium_model::{
     channel::Channel,
@@ -114,18 +81,15 @@ pub trait GuildExt {
     async fn search_members(
         &self,
         ctx: &Context,
-        body: neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembersBody,
-    ) -> Result<
-        neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembersResponse,
-        Error,
-    >;
+        body: neptunium_http::endpoints::guild::SearchGuildMembersBody,
+    ) -> Result<neptunium_http::endpoints::guild::SearchGuildMembersResponse, Error>;
     /// Get the authenticated bot/user as the guild member.
     async fn get_current_member(&self, ctx: &Context) -> Result<GuildMember, Error>;
     #[cfg(feature = "user_api")]
     async fn update_current_member(
         &self,
         ctx: &Context,
-        updates: neptunium_http::endpoints::guild::members::update_current_user_guild_member::UpdateCurrentUserGuildMemberBody,
+        updates: neptunium_http::endpoints::guild::UpdateCurrentUserGuildMemberBody,
     ) -> Result<GuildMember, Error>;
     async fn get_member(
         &self,
@@ -340,7 +304,7 @@ impl<T: GuildTrait> GuildExt for T {
         ctx: &Context,
         auth: neptunium_model::user::auth::SudoVerification,
     ) -> Result<(), Error> {
-        use neptunium_http::endpoints::guild::delete_guild::DeleteGuild;
+        use neptunium_http::endpoints::guild::DeleteGuild;
 
         Ok(ctx
             .get_http_client()
@@ -381,14 +345,11 @@ impl<T: GuildTrait> GuildExt for T {
     async fn search_members(
         &self,
         ctx: &Context,
-        body: neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembersBody,
-    ) -> Result<
-        neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembersResponse,
-        Error,
-    > {
+        body: neptunium_http::endpoints::guild::SearchGuildMembersBody,
+    ) -> Result<neptunium_http::endpoints::guild::SearchGuildMembersResponse, Error> {
         Ok(ctx
             .get_http_client()
-            .execute(neptunium_http::endpoints::guild::members::search_guild_members::SearchGuildMembers {
+            .execute(neptunium_http::endpoints::guild::SearchGuildMembers {
                 guild_id: self.get_guild_id(),
                 body,
             })
@@ -408,9 +369,9 @@ impl<T: GuildTrait> GuildExt for T {
     async fn update_current_member(
         &self,
         ctx: &Context,
-        updates: neptunium_http::endpoints::guild::members::update_current_user_guild_member::UpdateCurrentUserGuildMemberBody,
+        updates: neptunium_http::endpoints::guild::UpdateCurrentUserGuildMemberBody,
     ) -> Result<GuildMember, Error> {
-        use neptunium_http::endpoints::guild::members::update_current_user_guild_member::UpdateCurrentUserGuildMember;
+        use neptunium_http::endpoints::guild::UpdateCurrentUserGuildMember;
 
         Ok(ctx
             .get_http_client()
@@ -667,7 +628,7 @@ impl<T: GuildTrait> GuildExt for T {
         new_owner_id: Id<UserMarker>,
         password: Option<String>,
     ) -> Result<Guild, Error> {
-        use neptunium_http::endpoints::guild::transfer_guild_ownership::TransferGuildOwnership;
+        use neptunium_http::endpoints::guild::TransferGuildOwnership;
         use zeroize::Zeroizing;
 
         Ok(ctx

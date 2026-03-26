@@ -4,9 +4,7 @@ use std::{env, sync::Arc};
 
 use fluxer_neptunium::{
     http::client::TokenType,
-    model::gateway::payload::incoming::{
-        passive_updates::PassiveUpdates, session_events::ready::Ready,
-    },
+    model::gateway::payload::incoming::{PassiveUpdates, Ready},
     prelude::*,
 };
 

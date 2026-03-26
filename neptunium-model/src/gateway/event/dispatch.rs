@@ -3,52 +3,15 @@ use serde::Deserialize;
 use crate::{
     channel::{Channel, message::Message},
     gateway::payload::incoming::{
-        audit_log_events::audit_log_entry_create::GuildAuditLogEntryCreate,
-        authentication_events::auth_session_change::AuthSessionChange,
-        calls_events::{call_create::CallCreate, call_delete::CallDelete, call_update::CallUpdate},
-        channel_events::{
-            channel_pins_ack::ChannelPinsAck, channel_pins_update::ChannelPinsUpdate,
-            channel_update_bulk::ChannelUpdateBulk,
-        },
-        content_events::{
-            guild_emojis_update::GuildEmojisUpdate, guild_stickers_update::GuildStickersUpdate,
-        },
-        favorite_memes_events::favorite_meme_delete::FavoriteMemeDelete,
-        group_dm_events::{
-            channel_recipient_add::ChannelRecipientAdd,
-            channel_recipient_remove::ChannelRecipientRemove,
-        },
-        guild_events::{guild_create::GuildCreate, guild_delete::GuildDelete},
-        guild_moderation_events::{guild_ban_add::GuildBanAdd, guild_ban_remove::GuildBanRemove},
-        invites_events::invite_delete::InviteDelete,
-        members_events::guild_member_remove::GuildMemberRemove,
-        message_events::{
-            message_create::MessageCreate, message_delete::MessageDelete,
-            message_delete_bulk::MessageDeleteBulk,
-        },
-        message_reactions_events::{
-            message_reaction_add::MessageReactionAdd,
-            message_reaction_remove::MessageReactionRemove,
-            message_reaction_remove_all::MessageReactionRemoveAll,
-            message_reaction_remove_emoji::MessageReactionRemoveEmoji,
-        },
-        presence_events::presence_update::PresenceUpdateIncoming,
-        read_state_events::message_ack::MessageAck,
-        relationship_events::relationship_remove::RelationshipRemove,
-        roles_events::{
-            guild_role_create::GuildRoleCreate, guild_role_delete::GuildRoleDelete,
-            guild_role_update::GuildRoleUpdate, guild_role_update_bulk::GuildRoleUpdateBulk,
-        },
-        session_events::ready::{Ready, UserPrivateResponse},
-        typing_events::typing_start::TypingStart,
-        user_content_events::{
-            recent_mention_delete::RecentMentionDelete, saved_message_delete::SavedMessageDelete,
-        },
-        user_events::user_note_update::UserNoteUpdate,
-        voice_events::{
-            voice_server_update::VoiceServerUpdate, voice_state_update::VoiceStateUpdate,
-        },
-        webhooks_events::webhooks_update::WebhooksUpdate,
+        AuthSessionChange, CallCreate, CallDelete, CallUpdate, ChannelPinsAck, ChannelPinsUpdate,
+        ChannelRecipientAdd, ChannelRecipientRemove, ChannelUpdateBulk, FavoriteMemeDelete,
+        GuildAuditLogEntryCreate, GuildBanAdd, GuildBanRemove, GuildCreate, GuildDelete,
+        GuildEmojisUpdate, GuildMemberRemove, GuildRoleCreate, GuildRoleDelete, GuildRoleUpdate,
+        GuildRoleUpdateBulk, GuildStickersUpdate, InviteDelete, MessageAck, MessageCreate,
+        MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
+        MessageReactionRemoveAll, MessageReactionRemoveEmoji, PresenceUpdateIncoming, Ready,
+        RecentMentionDelete, RelationshipRemove, SavedMessageDelete, TypingStart, UserNoteUpdate,
+        UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
     },
     guild::{Guild, member::GuildMember},
     id::{Id, marker::ChannelMarker},
@@ -137,7 +100,7 @@ pub enum DispatchEvent {
     CallDelete(CallDelete),
     // Source: https://github.com/fluxerapp/fluxer/blob/refactor/fluxer_app/src/stores/gateway/handlers/guild/PassiveUpdates.tsx#L39
     #[cfg(feature = "user_api")]
-    PassiveUpdates(crate::gateway::payload::incoming::passive_updates::PassiveUpdates),
+    PassiveUpdates(crate::gateway::payload::incoming::PassiveUpdates),
 }
 
 #[derive(Deserialize, Clone, Debug)]

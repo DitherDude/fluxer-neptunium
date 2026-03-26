@@ -1,11 +1,17 @@
 use bon::Builder;
 use serde::{Deserialize, Serialize};
 
-pub mod bulk_create_guild_emojis;
-pub mod create_guild_emoji;
-pub mod delete_guild_emoji;
-pub mod list_guild_emojis;
-pub mod update_guild_emoji;
+mod bulk_create_guild_emojis;
+mod create_guild_emoji;
+mod delete_guild_emoji;
+mod list_guild_emojis;
+mod update_guild_emoji;
+
+pub use bulk_create_guild_emojis::*;
+pub use create_guild_emoji::*;
+pub use delete_guild_emoji::*;
+pub use list_guild_emojis::*;
+pub use update_guild_emoji::*;
 
 #[derive(Builder, Clone, Debug, Serialize)]
 pub struct GuildEmojiCreateData {

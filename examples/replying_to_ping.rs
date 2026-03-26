@@ -1,8 +1,6 @@
 use std::{env, sync::Arc};
 
-use fluxer_neptunium::{
-    model::gateway::payload::incoming::message_events::message_create::MessageCreate, prelude::*,
-};
+use fluxer_neptunium::{model::gateway::payload::incoming::MessageCreate, prelude::*};
 
 struct Handler;
 

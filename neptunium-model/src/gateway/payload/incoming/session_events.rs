@@ -1,5 +1,8 @@
-pub mod ready;
+mod ready;
 // TODO: Maybe move this event somewhere else
-pub mod hello;
+mod hello;
+
+pub use hello::*;
+pub use ready::*;
 
 // TODO: RESUMED, SESSIONS_REPLACE

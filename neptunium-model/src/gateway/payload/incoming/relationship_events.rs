@@ -1,1 +1,3 @@
-pub mod relationship_remove;
+mod relationship_remove;
+
+pub use relationship_remove::*;

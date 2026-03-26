@@ -1,2 +1,5 @@
-pub mod guild_create;
-pub mod guild_delete;
+mod guild_create;
+mod guild_delete;
+
+pub use guild_create::*;
+pub use guild_delete::*;

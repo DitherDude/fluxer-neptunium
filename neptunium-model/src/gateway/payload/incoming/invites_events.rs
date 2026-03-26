@@ -1,1 +1,3 @@
-pub mod invite_delete;
+mod invite_delete;
+
+pub use invite_delete::*;

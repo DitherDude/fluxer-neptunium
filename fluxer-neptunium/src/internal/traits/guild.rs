@@ -1,5 +1,5 @@
 use neptunium_model::{
-    gateway::payload::incoming::session_events::ready::GuildReadyResponse,
+    gateway::payload::incoming::GuildReadyResponse,
     guild::Guild,
     id::{Id, marker::GuildMarker},
 };

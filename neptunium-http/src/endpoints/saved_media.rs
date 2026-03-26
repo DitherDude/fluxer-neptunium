@@ -3,9 +3,16 @@
 //! The names of structs here have been changed to be more consistently named (context: saved media was originally
 //! called "favorite memes", but this was changed, the API doesn't reflect the new naming (yet?) though).
 
-pub mod delete_saved_media;
-pub mod get_saved_media;
-pub mod list_saved_media;
-pub mod save_message_attachment;
-pub mod save_url;
-pub mod update_saved_media;
+mod delete_saved_media;
+mod get_saved_media;
+mod list_saved_media;
+mod save_message_attachment;
+mod save_url;
+mod update_saved_media;
+
+pub use delete_saved_media::*;
+pub use get_saved_media::*;
+pub use list_saved_media::*;
+pub use save_message_attachment::*;
+pub use save_url::*;
+pub use update_saved_media::*;

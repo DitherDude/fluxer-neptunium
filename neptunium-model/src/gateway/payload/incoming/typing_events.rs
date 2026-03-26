@@ -1,1 +1,3 @@
-pub mod typing_start;
+mod typing_start;
+
+pub use typing_start::*;

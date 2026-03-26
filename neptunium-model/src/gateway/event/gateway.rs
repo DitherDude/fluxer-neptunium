@@ -8,7 +8,7 @@ use crate::gateway::{
     event::{
         dispatch::DispatchEventPayload, invalid_session::InvalidSessionEvent, op_code::OpCode,
     },
-    payload::incoming::session_events::hello::Hello,
+    payload::incoming::Hello,
 };
 
 #[expect(clippy::large_enum_variant)]

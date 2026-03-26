@@ -1,12 +1,11 @@
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
-use crate::{
-    endpoints::{Endpoint, meta::limits::InstanceDiscoveryDocumentLimits},
-    request::Request,
-};
+use crate::{endpoints::Endpoint, request::Request};
 
-pub mod limits;
+mod limits;
+
+pub use limits::*;
 
 #[derive(Copy, Clone, Debug)]
 pub struct InstanceDiscoveryDocument;

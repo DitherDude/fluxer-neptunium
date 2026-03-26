@@ -1,13 +1,27 @@
-pub mod add_role_to_guild_member;
-pub mod ban_guild_member;
-pub mod get_current_user_guild_member;
-pub mod get_guild_member;
-pub mod kick_guild_member;
-pub mod list_guild_members;
-pub mod remove_role_from_member;
+mod add_role_to_guild_member;
+mod ban_guild_member;
+mod get_current_user_guild_member;
+mod get_guild_member;
+mod kick_guild_member;
+mod list_guild_members;
+mod remove_role_from_member;
 #[cfg(feature = "user_api")]
-pub mod search_guild_members;
-pub mod unban_guild_member;
+mod search_guild_members;
+mod unban_guild_member;
 #[cfg(feature = "user_api")]
-pub mod update_current_user_guild_member;
-pub mod update_guild_member;
+mod update_current_user_guild_member;
+mod update_guild_member;
+
+pub use add_role_to_guild_member::*;
+pub use ban_guild_member::*;
+pub use get_current_user_guild_member::*;
+pub use get_guild_member::*;
+pub use kick_guild_member::*;
+pub use list_guild_members::*;
+pub use remove_role_from_member::*;
+#[cfg(feature = "user_api")]
+pub use search_guild_members::*;
+pub use unban_guild_member::*;
+#[cfg(feature = "user_api")]
+pub use update_current_user_guild_member::*;
+pub use update_guild_member::*;

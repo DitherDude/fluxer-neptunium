@@ -11,22 +11,13 @@ use neptunium_model::{
 
 use crate::{client::error::Error, events::context::Context};
 
-use neptunium_http::endpoints::channel::messages::{
-    create_message::{CreateMessage, CreateMessageBody},
-    delete_message::DeleteMessage,
-    delete_message_attachment::DeleteMessageAttachment,
-    edit_message::{EditMessage, EditMessageUpdates},
-    fetch_message::FetchMessage,
-    message_reference::MessageReference,
-    pin_message::PinMessage,
-    reactions::{
-        AddReaction, DeleteAllReactions, DeleteAllReactionsOfEmoji, DeleteOwnReaction,
-        DeleteReaction,
-    },
-    unpin_message::UnpinMessage,
+use neptunium_http::endpoints::channel::{
+    AddReaction, CreateMessage, CreateMessageBody, DeleteAllReactions, DeleteAllReactionsOfEmoji,
+    DeleteMessage, DeleteMessageAttachment, DeleteOwnReaction, DeleteReaction, EditMessage,
+    EditMessageUpdates, FetchMessage, MessageReference, PinMessage, UnpinMessage,
 };
 
-pub use neptunium_http::endpoints::channel::messages::reactions::RequestReactionType as Reaction;
+pub use neptunium_http::endpoints::channel::RequestReactionType as Reaction;
 
 #[async_trait]
 pub trait MessageExt {
@@ -241,7 +232,7 @@ impl MessageExt for Message {
 
     #[cfg(feature = "user_api")]
     async fn acknowledge(&self, ctx: &Context) -> Result<(), Error> {
-        use neptunium_http::endpoints::channel::messages::acknowledge_message::AcknowledgeMessage;
+        use neptunium_http::endpoints::channel::AcknowledgeMessage;
 
         Ok(ctx
             .http_client
@@ -261,7 +252,7 @@ impl MessageExt for Message {
         mention_count: Option<u64>,
         manual: Option<bool>,
     ) -> Result<(), Error> {
-        use neptunium_http::endpoints::channel::messages::acknowledge_message::AcknowledgeMessage;
+        use neptunium_http::endpoints::channel::AcknowledgeMessage;
 
         Ok(ctx
             .http_client

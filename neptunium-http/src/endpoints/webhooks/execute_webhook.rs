@@ -10,7 +10,7 @@ use serde::Serialize;
 use zeroize::Zeroizing;
 
 use crate::{
-    endpoints::{Endpoint, channel::messages::create_message::CreateMessageBody},
+    endpoints::{Endpoint, channel::CreateMessageBody},
     request::Request,
 };
 

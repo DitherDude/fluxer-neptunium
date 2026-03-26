@@ -5,9 +5,13 @@ use neptunium_model::{
 };
 use serde::Serialize;
 
-pub mod create_guild_channel;
-pub mod list_guild_channels;
-pub mod update_channel_positions;
+mod create_guild_channel;
+mod list_guild_channels;
+mod update_channel_positions;
+
+pub use create_guild_channel::*;
+pub use list_guild_channels::*;
+pub use update_channel_positions::*;
 
 // Source: https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/schema/src/domains/channel/ChannelRequestSchemas.tsx#L63
 // TODO: Maybe split this into different channel types

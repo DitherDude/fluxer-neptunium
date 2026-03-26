@@ -1,1 +1,2 @@
-pub mod webhooks_update;
+mod webhooks_update;
+pub use webhooks_update::*;

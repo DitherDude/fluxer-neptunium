@@ -3,8 +3,8 @@ use std::sync::Arc;
 use neptunium_http::{
     client::HttpClient,
     endpoints::{
-        gateway::get_gateway_information::{GatewayInformation, GetGatewayInformation},
-        guild::list_current_user_guilds::{ListCurrentUserGuilds, ListCurrentUserGuildsParams},
+        gateway::{GatewayInformation, GetGatewayInformation},
+        guild::{ListCurrentUserGuilds, ListCurrentUserGuildsParams},
     },
 };
 use neptunium_model::{
