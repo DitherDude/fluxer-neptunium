@@ -164,20 +164,6 @@ impl AuditLogChangeKey {
     /// Raw name of the key.
     ///
     /// The raw names of keys are in `snake_case` form.
-    ///
-    /// # Examples
-    ///
-    /// Check the names of the [`Allow`] and [`BannerHash`] keys:
-    ///
-    /// ```
-    /// use twilight_model::guild::audit_log::AuditLogChangeKey;
-    ///
-    /// assert_eq!("allow", AuditLogChangeKey::Allow.name());
-    /// assert_eq!("banner_hash", AuditLogChangeKey::BannerHash.name());
-    /// ```
-    ///
-    /// [`Allow`]: Self::Allow
-    /// [`BannerHash`]: Self::BannerHash
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {

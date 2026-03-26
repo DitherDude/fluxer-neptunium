@@ -6,9 +6,7 @@ use crate::id::{
 };
 
 // Source: https://github.com/fluxerapp/fluxer/blob/d91388b979e7709575f929218dd053e081aa684e/packages/api/src/guild/services/GuildService.tsx#L90
-/// Additional information for certain [`AuditLogEventType`]s.
-///
-/// [`AuditLogEventType`]: super::AuditLogEventType
+/// Additional information for certain `AuditLogEventType`s.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct AuditLogOptionalEntryInfo {
     /// Channel in which the entities were targeted.

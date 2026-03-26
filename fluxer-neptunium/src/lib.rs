@@ -1,9 +1,35 @@
+//! A Fluxer bot framework.
+//!
+//! # Example
+//! ```no_run
+//! use fluxer_neptunium::{prelude::*, model::gateway::payload::incoming::MessageCreate};
+//! use std::sync::Arc;
+//!
+//! struct Handler;
+//!
+//! // async_trait is a re-export of fluxer_neptunium (from the `async_trait` crate).
+//! #[async_trait]
+//! impl EventHandler for Handler {
+//!   async fn on_message_create(&self, _ctx: Context, message: Arc<MessageCreate>) -> Result<(), EventError> {
+//!     println!("{}#{}: {}", message.author.username, message.author.discriminator, message.content);
+//!     Ok(())
+//!   }
+//! }
+//!
+//! #[tokio::main]
+//! async fn main() {
+//!   let token = std::env::var("FLUXER_TOKEN").unwrap();
+//!   let mut client = Client::new(ShardConfig::builder().token(token).build());
+//!   client.register_event_handler(Handler);
+//!   client.start().await.unwrap();
+//! }
+//! ```
+
 pub mod client;
 pub mod events;
 pub mod exts;
 mod internal;
 pub use async_trait::async_trait;
-pub use tokio::main;
 
 pub use neptunium_http as http;
 pub use neptunium_model as model;

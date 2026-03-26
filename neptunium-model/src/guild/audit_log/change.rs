@@ -16,14 +16,7 @@ use crate::time::timestamp::Timestamp;
 use crate::time::timestamp::representations::Iso8601;
 use serde::{Deserialize, Serialize};
 
-/// Minimal amount of information about an affected [role].
-///
-/// The following [`AuditLogChange`]s include this information:
-///
-/// - [`AuditLogChange::RoleAdded`]
-/// - [`AuditLogChange::RoleRemoved`]
-///
-/// [role]: super::super::Role
+/// Minimal amount of information about an affected role.
 #[derive(Clone, Debug, Deserialize, Eq, Hash, PartialEq, Serialize)]
 pub struct AffectedRole {
     /// ID of the role.
@@ -42,9 +35,7 @@ pub enum AuditLogChangeTypeValue {
     String(String),
 }
 
-/// Individual change within an [`AuditLogEntry`].
-///
-/// [`AuditLogEntry`]: super::AuditLogEntry
+/// Individual change within an `AuditLogEntry`.
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[non_exhaustive]
 #[serde(rename_all = "snake_case", tag = "key")]
@@ -725,26 +716,6 @@ pub enum AuditLogChange {
 
 impl AuditLogChange {
     /// Key of an audit log change.
-    ///
-    /// This may return no key if the variant is [`Other`].
-    ///
-    /// # Examples
-    ///
-    /// Check the key of a [`Uses`] change:
-    ///
-    /// ```
-    /// use twilight_model::guild::audit_log::{AuditLogChange, AuditLogChangeKey};
-    ///
-    /// let change = AuditLogChange::UserLimit {
-    ///     new: Some(6),
-    ///     old: Some(3),
-    /// };
-    ///
-    /// assert_eq!(Some(AuditLogChangeKey::UserLimit), change.key());
-    /// ```
-    ///
-    /// [`Other`]: Self::Other
-    /// [`Uses`]: Self::Uses
     #[must_use]
     pub const fn key(&self) -> Option<AuditLogChangeKey> {
         Some(match self {
