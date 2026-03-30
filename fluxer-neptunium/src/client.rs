@@ -122,13 +122,19 @@ impl Client {
             if self.auto_reconnect {
                 tracing::warn!("Client error: {error}");
                 tracing::info!(
-                    "Reconnecting in {} seconds because auto-reconnect is true.",
+                    "Reconnecting in {} seconds because auto-reconnect is enabled.",
                     self.auto_reconnect_wait_time.as_secs()
                 );
+                if let Err(e) = self.shard.close().await {
+                    tracing::warn!("Error closing shard connection: {e}");
+                }
                 tokio::time::sleep(self.auto_reconnect_wait_time).await;
                 continue;
             } else {
-                tracing::debug!("Client error occured and auto-reconnect is false. Returning.");
+                tracing::debug!("Client error occured and auto-reconnect is disabled. Returning.");
+                if let Err(e) = self.shard.close().await {
+                    tracing::warn!("Error closing shard connection: {e}");
+                }
                 break Err(error);
             }
         }
@@ -189,7 +195,7 @@ impl Client {
                     };
                     match message {
                         ClientMessage::Heartbeat => {
-                            tracing::debug!("Sending heartbeat.");
+                            tracing::trace!("Sending heartbeat.");
                             self.shard
                                 .send_gateway_message(OutgoingGatewayMessage::Heartbeat(Heartbeat {
                                     last_sequence_number: self.last_sequence_number,
@@ -202,7 +208,7 @@ impl Client {
                         ClientMessage::PropagateEventError(error) => {
                             // If an error occurs while closing, we still want to propagate the event error instead of the websocket error.
                             if let Err(e) = self.shard.close().await {
-                                tracing::warn!("Error closing shard: {e}");
+                                tracing::warn!("Error closing shard connection: {e}");
                             }
                             return Err(Error::new(ClientErrorKind::EventError(Box::new(error))));
                         }

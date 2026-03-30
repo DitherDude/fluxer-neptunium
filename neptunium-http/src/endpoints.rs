@@ -14,6 +14,7 @@ pub mod invites;
 pub mod meta;
 #[cfg(feature = "user_api")]
 pub mod saved_media;
+pub mod users;
 pub mod webhooks;
 
 impl<T: DeserializeOwned> ResponseBody for T {

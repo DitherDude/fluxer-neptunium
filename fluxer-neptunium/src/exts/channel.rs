@@ -4,9 +4,10 @@ use neptunium_http::endpoints::{
         AddUserToGroupDm, BulkDeleteMessages, CallEligibilityStatus, ChannelSettingsUpdates,
         CreateMessage, CreateMessageBody, DeleteChannel, DeletePermissionOverwrite, FetchChannel,
         GetCallEligibilityStatus, IndicateTyping, ListChannelMessages, ListChannelMessagesParams,
-        ListRtcRegions, ListRtcRegionsResponseEntry, RemoveUserFromGroupDm, RingCallRecipients,
-        StopRingingCallRecipients, UpdateCallRegion, UpdateChannelSettings,
-        {PermissionOverwriteUpdate, SetPermissionOverwrite},
+        ListRtcRegions, ListRtcRegionsResponseEntry, PermissionOverwriteUpdate,
+        PinDirectMessageChannel, RemoveUserFromGroupDm, RingCallRecipients, SetPermissionOverwrite,
+        StopRingingCallRecipients, UnpinDirectMessageChannel, UpdateCallRegion,
+        UpdateChannelSettings,
     },
     invites::{CreateChannelInvite, CreateChannelInviteOptions, ListChannelInvites},
     webhooks::{CreateWebhook, ListChannelWebhooks},
@@ -124,6 +125,8 @@ pub trait ChannelExt {
         name: String,
         avatar: Option<String>,
     ) -> Result<Webhook, Error>;
+    async fn pin_channel(&self, ctx: &Context) -> Result<(), Error>;
+    async fn unpin_channel(&self, ctx: &Context) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -429,5 +432,23 @@ impl<T: ChannelTrait> ChannelExt for T {
                 avatar,
             })
             .await?)
+    }
+
+    async fn pin_channel(&self, ctx: &Context) -> Result<(), Error> {
+        ctx.get_http_client()
+            .execute(PinDirectMessageChannel {
+                channel_id: self.get_channel_id(),
+            })
+            .await?;
+        Ok(())
+    }
+
+    async fn unpin_channel(&self, ctx: &Context) -> Result<(), Error> {
+        ctx.get_http_client()
+            .execute(UnpinDirectMessageChannel {
+                channel_id: self.get_channel_id(),
+            })
+            .await?;
+        Ok(())
     }
 }

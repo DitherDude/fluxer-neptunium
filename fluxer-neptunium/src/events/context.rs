@@ -1,18 +1,30 @@
+#[cfg(feature = "user_api")]
+use std::collections::HashMap;
 use std::sync::Arc;
 
+#[cfg(feature = "user_api")]
+use neptunium_http::endpoints::users::{
+    RequestNewEmailAddress, RequestNewEmailAddressResponse, StartEmailChangeResponse,
+    UpdateCurrentUserProfile, VerifyNewEmailAddress, VerifyNewEmailAddressResponse,
+    VerifyOriginalEmailAddress, VerifyOriginalEmailAddressResponse,
+};
 use neptunium_http::{
     client::HttpClient,
     endpoints::{
+        channel::{CreatePrivateChannel, ListPrivateChannels},
         gateway::{GatewayInformation, GetGatewayInformation},
         guild::{ListCurrentUserGuilds, ListCurrentUserGuildsParams},
+        users::GetCurrentUserProfile,
     },
 };
 use neptunium_model::{
     channel::Channel,
-    gateway::payload::outgoing::PresenceUpdateOutgoing,
+    gateway::payload::{incoming::UserPrivateResponse, outgoing::PresenceUpdateOutgoing},
     guild::Guild,
     id::{Id, marker::ChannelMarker},
 };
+#[cfg(feature = "user_api")]
+use neptunium_model::{channel::message::Message, user::auth::SudoVerification};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
@@ -57,7 +69,7 @@ impl Context {
         Ok(self.http_client.execute(GetGatewayInformation).await?)
     }
 
-    pub async fn list_current_user_guilds(&self) -> Result<Vec<Guild>, Error> {
+    pub async fn list_own_guilds(&self) -> Result<Vec<Guild>, Error> {
         Ok(self
             .http_client
             .execute(
@@ -68,7 +80,7 @@ impl Context {
             .await?)
     }
 
-    pub async fn list_current_user_guilds_with_params(
+    pub async fn list_own_guilds_with_params(
         &self,
         params: ListCurrentUserGuildsParams,
     ) -> Result<Vec<Guild>, Error> {
@@ -76,5 +88,190 @@ impl Context {
             .http_client
             .execute(ListCurrentUserGuilds::builder().params(params).build())
             .await?)
+    }
+
+    pub async fn get_own_profile(&self) -> Result<UserPrivateResponse, Error> {
+        Ok(self.http_client.execute(GetCurrentUserProfile).await?)
+    }
+
+    #[cfg(feature = "user_api")]
+    pub async fn update_own_profile(
+        &self,
+        body: UpdateCurrentUserProfile,
+    ) -> Result<UserPrivateResponse, Error> {
+        Ok(self.http_client.execute(body).await?)
+    }
+
+    #[cfg(feature = "user_api")]
+    pub async fn forget_authorized_ips_for_current_user(
+        &self,
+        auth: SudoVerification,
+    ) -> Result<(), Error> {
+        use neptunium_http::endpoints::users::ForgetAuthorizedIps;
+
+        Ok(self
+            .http_client
+            .execute(ForgetAuthorizedIps { auth })
+            .await?)
+    }
+
+    /// List DM channels. This includes group DMs.
+    pub async fn list_own_private_channels(&self) -> Result<Vec<Channel>, Error> {
+        Ok(self.http_client.execute(ListPrivateChannels).await?)
+    }
+
+    /// Create a new DM or group DM channel.
+    pub async fn create_private_channel(
+        &self,
+        body: CreatePrivateChannel,
+    ) -> Result<Channel, Error> {
+        Ok(self.http_client.execute(body).await?)
+    }
+
+    /// Alternative endpoint to preload and cache messages for multiple channels to improve performance when opening those channels.
+    #[cfg(feature = "user_api")]
+    pub async fn preload_messages_for_channels(
+        &self,
+        channel_ids: Vec<Id<ChannelMarker>>,
+    ) -> Result<HashMap<Id<ChannelMarker>, Message>, Error> {
+        use neptunium_http::endpoints::channel::PreloadMessagesForChannels;
+
+        Ok(self
+            .http_client
+            .execute(PreloadMessagesForChannels {
+                channels: channel_ids,
+            })
+            .await?)
+    }
+
+    /// Permanently deletes the current user’s account and all associated data.
+    /// This action is irreversible and will remove all user data, messages, and connections.
+    #[cfg(feature = "user_api")]
+    pub async fn delete_own_account(&self, auth: SudoVerification) -> Result<(), Error> {
+        use neptunium_http::endpoints::users::DeleteCurrentUserAccount;
+
+        Ok(self
+            .http_client
+            .execute(DeleteCurrentUserAccount { auth })
+            .await?)
+    }
+
+    /// Temporarily disables the current user’s account. The account can be re-enabled by logging in again.
+    /// User data is preserved but the account will be inaccessible during the disabled period.
+    #[cfg(feature = "user_api")]
+    pub async fn disable_own_account(&self, auth: SudoVerification) -> Result<(), Error> {
+        use neptunium_http::endpoints::users::DisableCurrentUserAccount;
+
+        Ok(self
+            .http_client
+            .execute(DisableCurrentUserAccount { auth })
+            .await?)
+    }
+
+    /// Starts a dedicated bounced-email recovery flow.
+    /// Sends a verification code to the replacement email without requiring
+    /// verification of the old bounced email address.
+    #[cfg(feature = "user_api")]
+    pub async fn request_replacement_email_for_bounced_address(
+        &self,
+        new_email: String,
+    ) -> Result<RequestNewEmailAddressResponse, Error> {
+        use neptunium_http::endpoints::users::RequestReplacementEmailForBouncedAddress;
+
+        Ok(self
+            .http_client
+            .execute(RequestReplacementEmailForBouncedAddress { new_email })
+            .await?)
+    }
+
+    /// Resends the verification code for the bounced-email recovery flow to the replacement email address.
+    #[cfg(feature = "user_api")]
+    pub async fn resend_replacement_email_code(&self, ticket: String) -> Result<(), Error> {
+        use neptunium_http::endpoints::users::ResendReplacementEmailCode;
+
+        Ok(self
+            .http_client
+            .execute(ResendReplacementEmailCode { ticket })
+            .await?)
+    }
+
+    /// Completes bounced-email recovery by verifying the replacement email code,
+    /// updating the account email, and clearing email-related suspicious-activity requirements.
+    #[cfg(feature = "user_api")]
+    pub async fn verify_replacement_email_for_bounced_address(
+        &self,
+        ticket: String,
+        code: String,
+    ) -> Result<UserPrivateResponse, Error> {
+        use neptunium_http::endpoints::users::VerifyReplacementEmailForBouncedAddress;
+
+        Ok(self
+            .http_client
+            .execute(VerifyReplacementEmailForBouncedAddress { ticket, code })
+            .await?)
+    }
+
+    /// Requests to change email to a new address. Requires proof of original email verification.
+    /// Sends confirmation code to new email address for verification.
+    #[cfg(feature = "user_api")]
+    pub async fn request_new_email_address(
+        &self,
+        body: RequestNewEmailAddress,
+    ) -> Result<RequestNewEmailAddressResponse, Error> {
+        Ok(self.http_client.execute(body).await?)
+    }
+
+    /// Resends a confirmation code to the new email address during the email change process.
+    /// Use this if the new email confirmation was not received. Requires valid email change ticket.
+    #[cfg(feature = "user_api")]
+    pub async fn resend_new_email_confirmation(&self, ticket: String) -> Result<(), Error> {
+        use neptunium_http::endpoints::users::ResendNewEmailConfirmation;
+
+        Ok(self
+            .http_client
+            .execute(ResendNewEmailConfirmation { ticket })
+            .await?)
+    }
+
+    /// Resends a confirmation code to the user’s original email address during the email change process.
+    /// Use this if the original confirmation email was not received. Requires valid email change ticket.
+    #[cfg(feature = "user_api")]
+    pub async fn resend_original_email_confirmation(&self, ticket: String) -> Result<(), Error> {
+        use neptunium_http::endpoints::users::ResendOriginalEmailConfirmation;
+
+        Ok(self
+            .http_client
+            .execute(ResendOriginalEmailConfirmation { ticket })
+            .await?)
+    }
+
+    /// Initiates an email change process. Generates a ticket for verifying
+    /// the original email address before requesting a new email.
+    /// Returns ticket for use in subsequent email change steps.
+    #[cfg(feature = "user_api")]
+    pub async fn start_email_change(&self) -> Result<StartEmailChangeResponse, Error> {
+        use neptunium_http::endpoints::users::StartEmailChange;
+
+        Ok(self.http_client.execute(StartEmailChange).await?)
+    }
+
+    /// Completes the email change process by verifying the new email address with a confirmation code.
+    /// Returns an email token that confirms the email change. After this step, the user may need to re-authenticate.
+    #[cfg(feature = "user_api")]
+    pub async fn verify_new_email_address(
+        &self,
+        body: VerifyNewEmailAddress,
+    ) -> Result<VerifyNewEmailAddressResponse, Error> {
+        Ok(self.http_client.execute(body).await?)
+    }
+
+    /// Verifies ownership of the original email address by validating a confirmation code sent to that address.
+    /// Must be completed before requesting a new email address. Returns proof token for use in new email request.
+    #[cfg(feature = "user_api")]
+    pub async fn verify_original_email_address(
+        &self,
+        body: VerifyOriginalEmailAddress,
+    ) -> Result<VerifyOriginalEmailAddressResponse, Error> {
+        Ok(self.http_client.execute(body).await?)
     }
 }
