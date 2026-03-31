@@ -22,7 +22,7 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
     let token = env::var("FLUXER_TOKEN").unwrap();
-    let mut client = Client::new(ShardConfig::builder().token(token).build());
+    let mut client = Client::new(token);
 
     client.register_event_handler(Handler);
 

@@ -34,9 +34,7 @@ impl EventHandler for Handler {
 #[tokio::main]
 async fn main() {
     let mut client = Client::new_with_config(
-        ShardConfig::builder()
-            .token(env::var("FLUXER_USER_TOKEN").unwrap())
-            .build(),
+        env::var("FLUXER_USER_TOKEN").unwrap(),
         ClientConfig::builder().token_type(TokenType::User).build(),
     );
 
