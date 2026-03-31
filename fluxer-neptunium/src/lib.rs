@@ -53,4 +53,5 @@ pub mod prelude {
     };
     pub use async_trait::async_trait;
     pub use neptunium_gateway::shard::config::{ShardConfig, ShardConfigBuilder};
+    pub use neptunium_model::gateway::intents::GatewayEventFlags;
 }

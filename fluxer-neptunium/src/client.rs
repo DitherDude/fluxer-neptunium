@@ -58,6 +58,23 @@ impl Deref for Client {
 impl Client {
     pub const USER_AGENT: &str = "Fluxer-Neptunium";
 
+    /// Create a new client, given a `ShardConfig` or token.
+    /// # Examples
+    /// ```no_run
+    /// # use fluxer_neptunium::prelude::*;
+    /// # fn main() {
+    /// let token: String = std::env::var("FLUXER_TOKEN").unwrap();
+    /// let client = Client::new(token);
+    /// // The `ShardConfigBuilder` allows for other configuration:
+    /// let token: String = std::env::var("FLUXER_TOKEN").unwrap();
+    /// let client = Client::new(
+    ///     ShardConfig::builder()
+    ///         .token(token)
+    ///         .ignored_events(GatewayEventFlags::GUILDS)
+    ///         .build(),
+    /// );
+    /// # }
+    /// ```
     #[must_use]
     pub fn new(shard_config: impl Into<ShardConfig>) -> Self {
         Self::new_with_config(shard_config, ClientConfig::default())
