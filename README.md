@@ -15,7 +15,7 @@ Add the `fluxer-neptunium` crate (**NOTE:** Not yet published to crates.io, as i
 If you require even more fine-grained control over things, you may be interested in the `neptunium-gateway` and/or `neptunium-http` crates.
 
 # Examples
-Examples can be found in the [examples/](./examples) directory, with a .png for each example to show what it does.
+Examples can be found in the [examples/](./examples) directory, with a .png for some examples to show what they do.
 
 Run an example using `FLUXER_TOKEN="<token>" cargo run --example <example>`, replacing `<token>` with the bot token and `<example>` with the example name. To run the replying-to-ping example, use `FLUXER_TOKEN="<token>" cargo run --example replying-to-ping`.
 
@@ -26,8 +26,11 @@ Note that many of the APIs are user-only, so not interesting for bots. While thi
 - **Gateway:**
   - **Bot Gateway:** 100% (make an issue if something is missing)
   - **User Gateway:** 100% (afaik)
-- **HTTP API:** Maybe like 60-75% of the bot API — I'm working on it
-  - Rate limiting is not yet implemented either, sorry :(
+- **HTTP API:**
+  - **Bot-relevant API:** 100%
+    - Currently working on caching
+    - Rate limit support is not yet implemented
+  - **User-bot-relevant API:** >50% (probably)
 
 This is the current support for different APIs (Categories named after [The official Fluxer API documentation sections](https://docs.fluxer.app/api-reference/instance/get-instance-discovery-document)):
 
