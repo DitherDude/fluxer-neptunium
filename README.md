@@ -1,6 +1,6 @@
 ![fluxer-neptunium logo](./.assets/fluxer-neptunium-logo-with-text-1.png)
 
-A collection of crates for interacting with the Fluxer API and gateway. The crate which most bot creators will be interested in is `fluxer-neptunium` (which is a bot framework).
+A collection of crates for interacting with the Fluxer API and gateway. The crate which most bot creators will be interested in is `fluxer-neptunium` (which is a bot framework). Heavily inspired by [twilight-rs](https://github.com/twilight-rs/twilight).
 
 Fluxer-neptunium supports user-bots too! Enable the `user_api` feature and look at the `user-bot` example to see how to let fluxer-neptunium know that your token is a user token. User bots are allowed on Fluxer as long as they don't spam.
 
