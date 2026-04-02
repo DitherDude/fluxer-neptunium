@@ -7,6 +7,7 @@ use crate::{endpoints::Endpoint, request::Request};
 pub struct ListSudoMfaAuthenticationMethods;
 
 #[derive(Deserialize, Copy, Clone, Debug)]
+#[expect(clippy::struct_excessive_bools)]
 pub struct ListSudoMfaAuthenticationMethodsResponse {
     pub totp: bool,
     pub sms: bool,

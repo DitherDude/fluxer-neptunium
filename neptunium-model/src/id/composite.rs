@@ -10,14 +10,17 @@ pub struct CompositeId<L: IdMarker, R: IdMarker> {
 }
 
 impl<L: IdMarker, R: IdMarker> CompositeId<L, R> {
+    #[must_use]
     pub fn new(left: Id<L>, right: Id<R>) -> Self {
         Self { left, right }
     }
 
+    #[must_use]
     pub fn get_left(&self) -> &Id<L> {
         &self.left
     }
 
+    #[must_use]
     pub fn get_right(&self) -> &Id<R> {
         &self.right
     }

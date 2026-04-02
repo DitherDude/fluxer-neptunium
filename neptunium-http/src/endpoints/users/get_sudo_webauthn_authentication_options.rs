@@ -9,6 +9,7 @@ pub struct GetSudoWebauthnAuthenticationOptions;
 #[derive(Deserialize, Clone, Debug)]
 pub struct GetSudoWebauthnAuthenticationOptionsResponse {
     /// The WebAuthn challenge.
+    #[expect(clippy::doc_markdown)]
     pub challenge: String,
 }
 

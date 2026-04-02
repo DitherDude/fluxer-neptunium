@@ -8,6 +8,7 @@ repository.workspace = true
 readme = "README.md"
 keywords = ["api", "fluxer"]
 publish = true
+categories = ["api-bindings"]
 
 [dependencies]
 tokio = { version = "1.50.0", features = ["rt-multi-thread", "macros"] } # `time` for when we need sleep()
@@ -28,3 +29,6 @@ bon = "3.9.1"
 default = []
 user_api = ["neptunium-http/user_api", "neptunium-model/user_api"]
 staff_api = ["neptunium-http/staff_api", "neptunium-model/staff_api"]
+
+[lints]
+workspace = true

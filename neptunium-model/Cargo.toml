@@ -8,6 +8,7 @@ repository.workspace = true
 readme = "README.md"
 keywords = ["api", "fluxer"]
 publish = true
+categories = []
 
 [dependencies]
 serde_json = "1.0.149"
@@ -22,3 +23,6 @@ bon = "3.9.1"
 default = []
 user_api = []
 staff_api = []
+
+[lints]
+workspace = true

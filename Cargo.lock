@@ -896,6 +896,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "neptunium-cache-inmemory"
+version = "0.3.0"
+
+[[package]]
 name = "neptunium-gateway"
 version = "0.3.0"
 dependencies = [

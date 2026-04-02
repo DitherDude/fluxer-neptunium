@@ -8,6 +8,7 @@ repository.workspace = true
 readme = "README.md"
 keywords = ["api", "fluxer"]
 publish = true
+categories = ["api-bindings"]
 
 [dependencies]
 async-trait = "0.1.89"
@@ -28,3 +29,6 @@ serde_repr = "0.1.20"
 default = []
 user_api = ["neptunium-model/user_api"]
 staff_api = ["neptunium-model/staff_api"]
+
+[lints]
+workspace = true

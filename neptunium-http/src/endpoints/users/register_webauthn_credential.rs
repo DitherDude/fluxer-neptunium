@@ -6,6 +6,7 @@ use serde::Serialize;
 use crate::{endpoints::Endpoint, request::Request};
 
 #[derive(Builder, Serialize, Clone, Debug)]
+#[expect(clippy::doc_markdown)]
 pub struct RegisterWebauthnCredential {
     // TODO: What type is this??
     /// WebAuthn registration response.

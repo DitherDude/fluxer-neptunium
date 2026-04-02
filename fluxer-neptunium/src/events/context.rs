@@ -62,6 +62,8 @@ pub struct Context {
     pub(crate) tx: UnboundedSender<ClientMessage>,
 }
 
+// TODO: Add errors docs
+#[expect(clippy::missing_errors_doc)]
 impl Context {
     #[must_use]
     pub fn get_http_client(&self) -> &Arc<HttpClient> {
@@ -447,6 +449,7 @@ impl Context {
     }
 
     /// Retrieve all registered WebAuthn credentials (security keys, biometric devices) for the current user.
+    #[expect(clippy::doc_markdown)]
     #[cfg(feature = "user_api")]
     pub async fn list_webauthn_credentials(
         &self,
@@ -457,6 +460,7 @@ impl Context {
     }
 
     /// Complete registration of a new WebAuthn credential (security key or biometric device).
+    #[expect(clippy::doc_markdown)]
     #[cfg(feature = "user_api")]
     pub async fn register_webauthn_credential(
         &self,
@@ -466,6 +470,7 @@ impl Context {
     }
 
     /// Generate challenge and options to register a new WebAuthn credential.
+    #[expect(clippy::doc_markdown)]
     #[cfg(feature = "user_api")]
     pub async fn get_webauthn_registration_options(
         &self,
@@ -480,6 +485,7 @@ impl Context {
     }
 
     /// Remove a registered WebAuthn credential from the current account.
+    #[expect(clippy::doc_markdown)]
     #[cfg(feature = "user_api")]
     pub async fn delete_webauthn_credential(
         &self,
@@ -489,6 +495,7 @@ impl Context {
     }
 
     /// Update the name or settings of a registered WebAuthn credential.
+    #[expect(clippy::doc_markdown)]
     #[cfg(feature = "user_api")]
     pub async fn update_webauthn_credential(
         &self,
@@ -736,6 +743,7 @@ impl Context {
     }
 
     /// Generate WebAuthn challenge for sudo mode verification using a registered security key or biometric device.
+    #[expect(clippy::doc_markdown)]
     #[cfg(feature = "user_api")]
     pub async fn get_sudo_webauthn_authentication_options(
         &self,

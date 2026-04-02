@@ -135,7 +135,9 @@ impl Client {
     /// Returns an error if unexpected data is received, or if a network error occurs.
     pub async fn start(&mut self) -> Result<(), self::error::Error> {
         loop {
-            let result = self.inner_start().await;
+            // Using Box::pin to avoid potentially causing a stack overflow by having a large future
+            // (clippy lint large_futures)
+            let result = Box::pin(self.inner_start()).await;
             let error = match result {
                 Ok(result) => return Ok(result),
                 Err(e) => e,
@@ -151,13 +153,12 @@ impl Client {
                 }
                 tokio::time::sleep(self.auto_reconnect_wait_time).await;
                 continue;
-            } else {
-                tracing::debug!("Client error occured and auto-reconnect is disabled. Returning.");
-                if let Err(e) = self.shard.close().await {
-                    tracing::warn!("Error closing shard connection: {e}");
-                }
-                break Err(error);
             }
+            tracing::debug!("Client error occured and auto-reconnect is disabled. Returning.");
+            if let Err(e) = self.shard.close().await {
+                tracing::warn!("Error closing shard connection: {e}");
+            }
+            break Err(error);
         }
     }
 

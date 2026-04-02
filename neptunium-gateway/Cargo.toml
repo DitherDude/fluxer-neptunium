@@ -8,6 +8,7 @@ repository.workspace = true
 readme = "README.md"
 keywords = ["api", "fluxer"]
 publish = true
+categories = ["api-bindings", "web-programming::websocket"]
 
 [dependencies]
 serde = { version = "1.0.228", features = ["derive"] }
@@ -20,3 +21,6 @@ zeroize = "1.8.2"
 tracing = "0.1.44"
 serde_path_to_error = "0.1.20"
 bon = "3.9.1"
+
+[lints]
+workspace = true

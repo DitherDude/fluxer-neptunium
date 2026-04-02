@@ -1,0 +1,15 @@
+[package]
+name = "neptunium-cache-inmemory"
+edition = "2024"
+description = "Caching implementation for fluxer-neptunium."
+keywords = ["cache", "fluxer"]
+readme = "README.md"
+version.workspace = true
+license.workspace = true
+repository.workspace = true
+categories = ["caching"]
+
+[dependencies]
+
+[lints]
+workspace = true

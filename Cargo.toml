@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["neptunium-gateway", "neptunium-http", "neptunium-model", "fluxer-neptunium", "examples"]
+members = ["neptunium-gateway", "neptunium-http", "neptunium-model", "fluxer-neptunium", "examples", "neptunium-cache-inmemory"]
 
 [workspace.package]
 # ! When updating this, update the [workspace.dependencies] too !
@@ -14,6 +14,8 @@ neptunium-gateway = { path = "neptunium-gateway", version = "0.3.0" }
 neptunium-http = { path = "neptunium-http", version = "0.3.0" }
 
 [workspace.lints.clippy]
-cargo = {level = "warn", priority = 0 }
-pedantic = {level = "warn", priority = 0 }
+cargo = { level = "warn", priority = 0 }
+pedantic = { level = "warn", priority = 0 }
 new_without_default = { level = "allow", priority = 1 }
+multiple_crate_versions = { level = "allow", priority = 1 }
+cargo_common_metadata = { level = "allow", priority = 2 }
