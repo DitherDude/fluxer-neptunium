@@ -84,7 +84,10 @@ impl Context {
     /// # Errors
     /// Returns an error if there was a network error, the API did not return OK,
     /// or the API returned unexpected data that could not be parsed.
-    pub async fn fetch_channel(&self, channel_id: Id<ChannelMarker>) -> Result<Channel, Error> {
+    pub async fn fetch_channel(
+        &self,
+        channel_id: Id<ChannelMarker>,
+    ) -> Result<Arc<Channel>, Error> {
         channel_id.fetch(self).await
     }
 

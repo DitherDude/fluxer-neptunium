@@ -33,16 +33,18 @@ impl Debug for Cache {
 
 pub(crate) trait CacheKey: Copy {
     type Val;
-    async fn get_or_try_compute_insert<E, F: AsyncFn() -> Result<Self::Val, E>>(
+    async fn get_or_try_compute_insert<E, F: Future<Output = Result<Self::Val, E>>>(
         self,
         cache: &Cache,
         insert_fn: F,
     ) -> Result<Arc<Self::Val>, E>;
     fn remove(&self, cache: &Cache) -> Option<Arc<Self::Val>>;
+    fn get(&self, cache: &Cache) -> Option<Arc<Self::Val>>;
 }
 
 pub(crate) trait CacheValue: Sized {
     fn insert(self, cache: &Cache) -> Arc<Self>;
+    fn insert_without_returning_value(self, cache: &Cache);
     fn batch_insert(vec: Vec<Self>, cache: &Cache) -> Vec<Arc<Self>>;
 }
 
@@ -77,7 +79,11 @@ impl Cache {
         }
     }
 
-    pub async fn get_or_try_compute_insert<K: CacheKey, E, F: AsyncFn() -> Result<K::Val, E>>(
+    pub async fn get_or_try_compute_insert<
+        K: CacheKey,
+        E,
+        F: Future<Output = Result<K::Val, E>>,
+    >(
         &self,
         key: K,
         insert_fn: F,
@@ -95,9 +101,18 @@ impl Cache {
         value.insert(self)
     }
 
+    pub fn insert_without_returning_value(&self, value: impl CacheValue) {
+        value.insert_without_returning_value(self);
+    }
+
     #[must_use]
     pub fn batch_insert<V: CacheValue>(&self, vec: Vec<V>) -> Vec<Arc<V>> {
         V::batch_insert(vec, self)
+    }
+
+    #[must_use]
+    pub fn get<K: CacheKey>(&self, item: K) -> Option<Arc<K::Val>> {
+        item.get(self)
     }
 }
 
@@ -110,7 +125,7 @@ macro_rules! impl_cache_keys {
         $(
             impl CacheKey for $key_type {
                 type Val = $value_type;
-                async fn get_or_try_compute_insert<E, F: AsyncFn() -> Result<Self::Val, E>>(
+                async fn get_or_try_compute_insert<E, F: Future<Output = Result<Self::Val, E>>>(
                     self,
                     cache: &Cache,
                     insert_fn: F,
@@ -118,7 +133,7 @@ macro_rules! impl_cache_keys {
                     match cache.$member.get_value_or_guard_async(&self).await {
                         Ok(value) => Ok(value),
                         Err(guard) => {
-                            let value = insert_fn().await?;
+                            let value = insert_fn.await?;
                             let value = Arc::new(value);
                             if let Err(value) = guard.insert(Arc::clone(&value)) {
                                 // If inserting via the guard failed (relatively unlikely), insert normally
@@ -130,6 +145,9 @@ macro_rules! impl_cache_keys {
                 }
                 fn remove(&self, cache: &Cache) -> Option<Arc<Self::Val>> {
                     cache.$member.remove(self).map(|(_key, value)| value)
+                }
+                fn get(&self, cache: &Cache) -> Option<Arc<Self::Val>> {
+                    cache.$member.get(self)
                 }
             }
         )+
@@ -157,6 +175,9 @@ macro_rules! impl_cache_values {
                     let arc_self = Arc::new(self);
                     cache.$member.insert(arc_self.$key_member, Arc::clone(&arc_self));
                     arc_self
+                }
+                fn insert_without_returning_value(self, cache: &Cache) {
+                    cache.$member.insert(self.$key_member, Arc::new(self));
                 }
             }
         )+

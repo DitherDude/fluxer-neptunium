@@ -5,7 +5,7 @@ use neptunium_model::{
     user::PartialUser,
 };
 
-pub trait UserTrait: Sync {
+pub trait UserTrait: Sync + Send + 'static {
     fn get_user_id(&self) -> Id<UserMarker>;
 }
 

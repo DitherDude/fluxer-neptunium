@@ -4,7 +4,7 @@ use neptunium_model::{
     id::{Id, marker::GuildMarker},
 };
 
-pub trait GuildTrait: Sync {
+pub trait GuildTrait: Sync + Send + 'static {
     fn get_guild_id(&self) -> Id<GuildMarker>;
 }
 

@@ -14,7 +14,9 @@ use crate::{endpoints::Endpoint, request::Request};
 
 #[derive(Builder, Copy, Clone, Debug)]
 pub struct PermissionOverwriteUpdate {
+    /// Set to `None` to reset.
     pub allow: Option<Permissions>,
+    /// Set to `None` to reset.
     pub deny: Option<Permissions>,
     /// Can be either a role ID or a user ID
     pub id: Id<GenericMarker>,

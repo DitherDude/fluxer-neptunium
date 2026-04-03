@@ -4,7 +4,7 @@ use neptunium_model::{
 };
 
 /// Things that all channels have in common.
-pub trait ChannelTrait: Sync {
+pub trait ChannelTrait: Sync + Send {
     fn get_channel_id(&self) -> Id<ChannelMarker>;
 }
 

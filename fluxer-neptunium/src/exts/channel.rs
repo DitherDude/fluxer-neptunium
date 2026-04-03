@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use async_trait::async_trait;
 use neptunium_http::endpoints::{
     channel::{
@@ -13,8 +15,8 @@ use neptunium_http::endpoints::{
     webhooks::{CreateWebhook, ListChannelWebhooks},
 };
 use neptunium_model::{
-    channel::{Channel, VoiceRegion, message::Message},
-    guild::webhook::Webhook,
+    channel::{Channel, PermissionOverwrite, VoiceRegion, message::Message},
+    guild::{permissions::Permissions, webhook::Webhook},
     id::{
         Id,
         marker::{GenericMarker, MessageMarker, UserMarker},
@@ -36,8 +38,8 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         settings: ChannelSettingsUpdates,
-    ) -> Result<Channel, Error>;
-    async fn fetch(&self, ctx: &Context) -> Result<Channel, Error>;
+    ) -> Result<Arc<Channel>, Error>;
+    async fn fetch(&self, ctx: &Context) -> Result<Arc<Channel>, Error>;
     async fn get_call_eligibility_status(
         &self,
         ctx: &Context,
@@ -63,7 +65,7 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         params: ListChannelMessagesParams,
-    ) -> Result<Vec<Message>, Error>;
+    ) -> Result<Vec<Arc<Message>>, Error>;
     async fn bulk_delete_messages(
         &self,
         ctx: &Context,
@@ -74,12 +76,12 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Message, Error>;
+    ) -> Result<Arc<Message>, Error>;
     async fn create_message(
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Message, Error>;
+    ) -> Result<Arc<Message>, Error>;
     async fn set_permission_overwrite(
         &self,
         ctx: &Context,
@@ -132,34 +134,36 @@ pub trait ChannelExt {
 #[async_trait]
 impl<T: ChannelTrait> ChannelExt for T {
     async fn delete(&self, ctx: &Context) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(
                 DeleteChannel::builder()
                     .channel_id(self.get_channel_id())
                     .build(),
             )
-            .await?)
+            .await?;
+        ctx.cache.remove(self.get_channel_id());
+        Ok(())
     }
 
     async fn delete_silent(&self, ctx: &Context) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(
                 DeleteChannel::builder()
                     .channel_id(self.get_channel_id())
                     .silent(true)
                     .build(),
             )
-            .await?)
+            .await?;
+        ctx.cache.remove(self.get_channel_id());
+        Ok(())
     }
 
     async fn update_settings(
         &self,
         ctx: &Context,
         settings: ChannelSettingsUpdates,
-    ) -> Result<Channel, Error> {
-        Ok(ctx
+    ) -> Result<Arc<Channel>, Error> {
+        let channel = ctx
             .get_http_client()
             .execute(
                 UpdateChannelSettings::builder()
@@ -167,16 +171,20 @@ impl<T: ChannelTrait> ChannelExt for T {
                     .updates(settings)
                     .build(),
             )
-            .await?)
+            .await?;
+        Ok(ctx.cache.insert(channel))
     }
 
-    async fn fetch(&self, ctx: &Context) -> Result<Channel, Error> {
+    async fn fetch(&self, ctx: &Context) -> Result<Arc<Channel>, Error> {
         Ok(ctx
-            .get_http_client()
-            .execute(
-                FetchChannel::builder()
-                    .channel_id(self.get_channel_id())
-                    .build(),
+            .cache
+            .get_or_try_compute_insert(
+                self.get_channel_id(),
+                ctx.get_http_client().execute(
+                    FetchChannel::builder()
+                        .channel_id(self.get_channel_id())
+                        .build(),
+                ),
             )
             .await?)
     }
@@ -196,15 +204,20 @@ impl<T: ChannelTrait> ChannelExt for T {
     }
 
     async fn update_call_region(&self, ctx: &Context, region: VoiceRegion) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(
                 UpdateCallRegion::builder()
                     .channel_id(self.get_channel_id())
-                    .region(region)
+                    .region(region.clone())
                     .build(),
             )
-            .await?)
+            .await?;
+        if let Some(cached_channel) = ctx.cache.get(self.get_channel_id()) {
+            let mut updated_channel = (*cached_channel).clone();
+            updated_channel.rtc_region = Some(region);
+            ctx.cache.insert_without_returning_value(updated_channel);
+        }
+        Ok(())
     }
 
     async fn ring_call_recipients(
@@ -243,8 +256,8 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         params: ListChannelMessagesParams,
-    ) -> Result<Vec<Message>, Error> {
-        Ok(ctx
+    ) -> Result<Vec<Arc<Message>>, Error> {
+        let messages = ctx
             .get_http_client()
             .execute(
                 ListChannelMessages::builder()
@@ -252,7 +265,8 @@ impl<T: ChannelTrait> ChannelExt for T {
                     .params(params)
                     .build(),
             )
-            .await?)
+            .await?;
+        Ok(ctx.cache.batch_insert(messages))
     }
 
     async fn bulk_delete_messages(
@@ -260,22 +274,25 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         messages: Vec<Id<MessageMarker>>,
     ) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(
                 BulkDeleteMessages::builder()
                     .channel_id(self.get_channel_id())
-                    .messages(messages)
+                    .messages(messages.clone())
                     .build(),
             )
-            .await?)
+            .await?;
+        for message_id in messages {
+            ctx.cache.remove(message_id);
+        }
+        Ok(())
     }
 
     async fn send_message(
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Message, Error> {
+    ) -> Result<Arc<Message>, Error> {
         self.create_message(ctx, message).await
     }
 
@@ -283,8 +300,8 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Message, Error> {
-        Ok(ctx
+    ) -> Result<Arc<Message>, Error> {
+        let message = ctx
             .get_http_client()
             .execute(
                 CreateMessage::builder()
@@ -292,7 +309,8 @@ impl<T: ChannelTrait> ChannelExt for T {
                     .message(message)
                     .build(),
             )
-            .await?)
+            .await?;
+        Ok(ctx.cache.insert(message))
     }
 
     async fn set_permission_overwrite(
@@ -300,13 +318,35 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         update: PermissionOverwriteUpdate,
     ) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(SetPermissionOverwrite {
                 channel_id: self.get_channel_id(),
                 overwrite: update,
             })
-            .await?)
+            .await?;
+        if let Some(cached_channel) = ctx.cache.get(self.get_channel_id()) {
+            let mut updated_channel = (*cached_channel).clone();
+            if let Some(permission_overwrites) = &mut updated_channel.permission_overwrites {
+                if let Some(existing_overwrite) = permission_overwrites
+                    .iter_mut()
+                    .find(|overwrite| overwrite.id == update.id)
+                {
+                    // https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/api/src/channel/controllers/ChannelController.tsx#L272
+                    // Permission overwrites are set to 0 (empty) if they were not provided in the request.
+                    existing_overwrite.allow = update.allow.unwrap_or(Permissions::empty());
+                    existing_overwrite.deny = update.deny.unwrap_or(Permissions::empty());
+                }
+            } else {
+                updated_channel.permission_overwrites = Some(vec![PermissionOverwrite {
+                    allow: update.allow.unwrap_or(Permissions::empty()),
+                    deny: update.deny.unwrap_or(Permissions::empty()),
+                    id: update.id,
+                    r#type: update.r#type,
+                }]);
+            }
+            ctx.cache.insert_without_returning_value(updated_channel);
+        }
+        Ok(())
     }
 
     async fn delete_permission_overwrite(
@@ -314,13 +354,20 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         overwrite_id: Id<GenericMarker>,
     ) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(DeletePermissionOverwrite {
                 channel_id: self.get_channel_id(),
                 overwrite_id,
             })
-            .await?)
+            .await?;
+        if let Some(cached_channel) = ctx.cache.get(self.get_channel_id()) {
+            let mut updated_channel = (*cached_channel).clone();
+            if let Some(existing_overwrites) = &mut updated_channel.permission_overwrites {
+                existing_overwrites.retain(|overwrite| overwrite.id != overwrite_id);
+            }
+            ctx.cache.insert_without_returning_value(updated_channel);
+        }
+        Ok(())
     }
 
     #[cfg(feature = "user_api")]
@@ -340,15 +387,39 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         user_id: Id<UserMarker>,
     ) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
+        ctx.get_http_client()
             .execute(AddUserToGroupDm {
                 channel_id: self.get_channel_id(),
                 user_id,
             })
-            .await?)
-    }
+            .await?;
+        let Some(cached_user) = ctx.cache.get(user_id) else {
+            // If we don't have the user cached, simply return. Sadly this invalidates the cache
+            return Ok(());
+        };
+        if let Some(existing_channel) = ctx.cache.get(self.get_channel_id()) {
+            let mut modified_channel = (*existing_channel).clone();
+            let Some(recipients) = &mut modified_channel.recipients else {
+                tracing::warn!(
+                    "Group DM channel {} is present in the cache but has participants set to None.",
+                    self.get_channel_id()
+                );
+                return Ok(());
+            };
+            if recipients
+                .iter()
+                .filter(|partial_user| partial_user.id == user_id)
+                .count()
+                == 0
+            {
+                recipients.push((*cached_user).clone());
+            }
+            ctx.cache.insert_without_returning_value(modified_channel);
+        }
 
+        Ok(())
+    }
+    // TODO: Caching for all below functions:
     async fn remove_user_from_group_dm(
         &self,
         ctx: &Context,
