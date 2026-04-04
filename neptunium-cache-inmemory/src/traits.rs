@@ -6,19 +6,16 @@ use neptunium_http::{
     client::HttpClient,
     endpoints::{Endpoint, ExecuteEndpointRequestError},
 };
-use neptunium_model::channel::{Channel, message::Message};
+use neptunium_model::{
+    channel::{Channel, message::Message},
+    gateway::payload::incoming::UserPrivateResponse,
+};
 use tokio::sync::RwLock;
 
 pub mod cachable_endpoints;
-/*
-pub trait CacheKey: Copy {
-    type Value;
-    fn get(&self, cache: &Arc<Cache>) -> Option<Cached<Self::Value>>;
-    fn remove(&self, cache: &Arc<Cache>);
-}
-*/
+
 trait CacheValue {
-    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self>;
+    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self>;
 }
 
 #[async_trait]
@@ -52,44 +49,17 @@ pub trait NoReturnCachableEndpoint: Endpoint {
         cache: &Arc<Cache>,
     ) -> Result<Self::Response, Box<ExecuteEndpointRequestError>>;
 }
-/*
-impl CacheKey for Id<UserMarker> {
-    type Value = PartialUser;
-
-    fn get(&self, cache: &Arc<Cache>) -> Option<Cached<Self::Value>> {
-        cache.users.get(self)
-    }
-
-    fn remove(&self, cache: &Arc<Cache>) {
-        cache.users.invalidate(self);
-    }
-}
-*/
-/*
-impl CacheValue for PartialUser {
-    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
-        let id = self.id;
-        let value = Arc::new(RwLock::new(self));
-        cache.users.insert(id, Arc::clone(&value));
-        value
-    }
-}
-*/
-/*
-impl CacheKey for UserProfileCacheKey {
-    type Value = UserProfileFullResponse;
-    fn get(&self, cache: &Arc<Cache>) -> Option<Cached<Self::Value>> {
-        cache.user_profiles.get(self)
-    }
-    fn remove(&self, cache: &Arc<Cache>) {
-        cache.user_profiles.invalidate(self);
-    }
-}
-*/
 
 impl CacheValue for Channel {
-    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let channel_id = self.id;
+        if let Some(existing_channel) = cache.channels.get(&channel_id) {
+            {
+                let mut guard = existing_channel.write().await;
+                *guard = self;
+            }
+            return existing_channel;
+        }
         let value = Arc::new(RwLock::new(self));
         cache.channels.insert(channel_id, Arc::clone(&value));
         value
@@ -97,10 +67,37 @@ impl CacheValue for Channel {
 }
 
 impl CacheValue for Message {
-    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let message_id = self.id;
+        if let Some(existing_message) = cache.messages.get(&message_id) {
+            {
+                let mut guard = existing_message.write().await;
+                *guard = self;
+            }
+            return existing_message;
+        }
         let value = Arc::new(RwLock::new(self));
         cache.messages.insert(message_id, Arc::clone(&value));
         value
+    }
+}
+
+impl CacheValue for UserPrivateResponse {
+    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+        if let Some(existing_user) = cache.current_user.get() {
+            let existing_user = Arc::clone(existing_user);
+            {
+                let mut guard = existing_user.write().await;
+                *guard = self;
+            }
+            existing_user
+        } else {
+            Arc::clone(
+                cache
+                    .current_user
+                    .get_or_init(async || Arc::new(RwLock::new(self)))
+                    .await,
+            )
+        }
     }
 }

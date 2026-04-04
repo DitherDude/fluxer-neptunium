@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use async_trait::async_trait;
 use neptunium_http::{
@@ -6,13 +6,20 @@ use neptunium_http::{
     endpoints::{
         ExecuteEndpointRequestError,
         channel::{
-            BulkDeleteMessages, DeleteChannel, FetchChannel, ListChannelMessages, UpdateCallRegion,
+            BulkDeleteMessages, CreatePrivateChannel, DeleteChannel, FetchChannel,
+            ListChannelMessages, ListPrivateChannels, PreloadMessagesForChannels, UpdateCallRegion,
             UpdateChannelSettings,
         },
-        users::{GetUserById, GetUserProfile},
+        users::{
+            GetCurrentUserProfile, GetUserById, GetUserProfile, ListCurrentUserMentions,
+            UpdateCurrentUserProfile,
+        },
     },
 };
-use neptunium_model::channel::message::Message;
+use neptunium_model::{
+    channel::{Channel, message::Message},
+    id::{Id, marker::ChannelMarker},
+};
 use tokio::sync::RwLock;
 
 use crate::{
@@ -120,7 +127,7 @@ impl CachableEndpoint for FetchChannel {
             return Ok(cached_channel);
         }
         let res = client.execute(self).await?;
-        Ok(res.insert_and_return(cache))
+        Ok(res.insert_and_return(cache).await)
     }
 }
 
@@ -132,7 +139,7 @@ impl CachableEndpoint for UpdateChannelSettings {
         cache: &Arc<Cache>,
     ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(res.insert_and_return(cache))
+        Ok(res.insert_and_return(cache).await)
     }
 }
 
@@ -179,9 +186,96 @@ impl BatchCachableEndpoint for ListChannelMessages {
         cache: &Arc<Cache>,
     ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(res
-            .into_iter()
-            .map(|message| message.insert_and_return(cache))
-            .collect())
+        let mut cached_messages = Vec::with_capacity(res.len());
+        for message in res {
+            cached_messages.push(message.insert_and_return(cache).await);
+        }
+        Ok(cached_messages)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for GetCurrentUserProfile {
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+        let res = client.execute(self).await?;
+        Ok(res.insert_and_return(cache).await)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for UpdateCurrentUserProfile {
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+        let res = client.execute(self).await?;
+        Ok(res.insert_and_return(cache).await)
+    }
+}
+
+#[async_trait]
+impl BatchCachableEndpoint for ListPrivateChannels {
+    type Response = Vec<Cached<Channel>>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let res = client.execute(self).await?;
+        let mut cached_channels = Vec::with_capacity(res.len());
+        for channel in res {
+            cached_channels.push(channel.insert_and_return(cache).await);
+        }
+        Ok(cached_channels)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for CreatePrivateChannel {
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+        Ok(client.execute(self).await?.insert_and_return(cache).await)
+    }
+}
+
+#[async_trait]
+impl BatchCachableEndpoint for ListCurrentUserMentions {
+    type Response = Vec<Cached<Message>>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let res = client.execute(self).await?;
+        let mut cached_messages = Vec::with_capacity(res.len());
+        for message in res {
+            cached_messages.push(message.insert_and_return(cache).await);
+        }
+        Ok(cached_messages)
+    }
+}
+
+#[async_trait]
+impl BatchCachableEndpoint for PreloadMessagesForChannels {
+    type Response = HashMap<Id<ChannelMarker>, Cached<Message>>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let res = client.execute(self).await?;
+        let mut cached_messages = HashMap::with_capacity(res.len());
+        for (id, message) in res {
+            cached_messages.insert(id, message.insert_and_return(cache).await);
+        }
+        Ok(cached_messages)
     }
 }

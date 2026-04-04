@@ -2,6 +2,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use neptunium_cache_inmemory::{BatchCachableEndpoint, CachableEndpoint, Cached};
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::{
     channel::ScheduledMessageResponse,
@@ -87,7 +88,7 @@ impl Context {
     pub async fn fetch_channel(
         &self,
         channel_id: Id<ChannelMarker>,
-    ) -> Result<Arc<Channel>, Error> {
+    ) -> Result<Cached<Channel>, Error> {
         channel_id.fetch(self).await
     }
 
@@ -120,29 +121,20 @@ impl Context {
             .await?)
     }
 
-    pub async fn get_own_profile(&self) -> Result<Arc<UserPrivateResponse>, Error> {
-        let cached_current_user = Arc::clone(&self.cache.current_user);
-        let cached_current_user = cached_current_user.read_owned().await.clone();
-        if let Some(cached_current_user) = cached_current_user {
-            return Ok(cached_current_user);
-        }
-        let current_user = self.http_client.execute(GetCurrentUserProfile).await?;
-        let current_user = Arc::new(current_user);
-        let mut guard = Arc::clone(&self.cache.current_user).write_owned().await;
-        *guard = Some(Arc::clone(&current_user));
-        Ok(current_user)
+    pub async fn get_own_profile(&self) -> Result<Cached<UserPrivateResponse>, Error> {
+        Ok(GetCurrentUserProfile
+            .execute_cached(self.get_http_client(), &self.cache)
+            .await?)
     }
 
     #[cfg(feature = "user_api")]
     pub async fn update_own_profile(
         &self,
         body: UpdateCurrentUserProfile,
-    ) -> Result<Arc<UserPrivateResponse>, Error> {
-        let new_current_user = self.http_client.execute(body).await?;
-        let new_current_user = Arc::new(new_current_user);
-        *Arc::clone(&self.cache.current_user).write_owned().await =
-            Some(Arc::clone(&new_current_user));
-        Ok(new_current_user)
+    ) -> Result<Cached<UserPrivateResponse>, Error> {
+        Ok(body
+            .execute_cached(self.get_http_client(), &self.cache)
+            .await?)
     }
 
     #[cfg(feature = "user_api")]
@@ -159,18 +151,20 @@ impl Context {
     }
 
     /// List DM channels. This includes group DMs.
-    pub async fn list_own_private_channels(&self) -> Result<Vec<Arc<Channel>>, Error> {
-        let channels = self.http_client.execute(ListPrivateChannels).await?;
-        Ok(self.cache.batch_insert(channels))
+    pub async fn list_own_private_channels(&self) -> Result<Vec<Cached<Channel>>, Error> {
+        Ok(ListPrivateChannels
+            .execute_cached(self.get_http_client(), &self.cache)
+            .await?)
     }
 
     /// Create a new DM or group DM channel.
     pub async fn create_private_channel(
         &self,
         body: CreatePrivateChannel,
-    ) -> Result<Arc<Channel>, Error> {
-        let channel = self.http_client.execute(body).await?;
-        Ok(self.cache.insert(channel))
+    ) -> Result<Cached<Channel>, Error> {
+        Ok(body
+            .execute_cached(self.get_http_client(), &self.cache)
+            .await?)
     }
 
     /// Alternative endpoint to preload and cache messages for multiple channels to improve performance when opening those channels.
@@ -198,8 +192,7 @@ impl Context {
         self.http_client
             .execute(DeleteCurrentUserAccount { auth })
             .await?;
-        // Remove current user from cache
-        *self.cache.current_user.clone().write_owned().await = None;
+        // We do not remove the current user from the cache because it is OnceCell<T> and I don't want to handle that currently.
         Ok(())
     }
 
@@ -395,9 +388,12 @@ impl Context {
     pub async fn list_own_mentions(
         &self,
         params: ListCurrentUserMentions,
-    ) -> Result<Vec<Arc<Message>>, Error> {
-        let messages = self.http_client.execute(params).await?;
-        Ok(self.cache.batch_insert(messages))
+    ) -> Result<Vec<Cached<Message>>, Error> {
+        // let messages = self.http_client.execute(params).await?;
+        // Ok(self.cache.batch_insert(messages))
+        Ok(params
+            .execute_cached(self.get_http_client(), &self.cache)
+            .await?)
     }
 
     /// Initiates bulk deletion of all messages sent by the current user.
@@ -623,19 +619,14 @@ impl Context {
     pub async fn preload_messages_for_channels(
         &self,
         channel_ids: Vec<Id<ChannelMarker>>,
-    ) -> Result<HashMap<Id<ChannelMarker>, Arc<Message>>, Error> {
+    ) -> Result<HashMap<Id<ChannelMarker>, Cached<Message>>, Error> {
         use neptunium_http::endpoints::channel::PreloadMessagesForChannels;
 
-        let messages = self
-            .http_client
-            .execute(PreloadMessagesForChannels {
-                channels: channel_ids,
-            })
-            .await?;
-        Ok(messages
-            .into_iter()
-            .map(|(channel_id, message)| (channel_id, self.cache.insert(message)))
-            .collect())
+        Ok(PreloadMessagesForChannels {
+            channels: channel_ids,
+        }
+        .execute_cached(self.get_http_client(), &self.cache)
+        .await?)
     }
 
     /// Staff-only endpoint that clears premium status and related premium metadata for the current user account.

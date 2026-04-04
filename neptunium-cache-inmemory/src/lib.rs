@@ -4,10 +4,17 @@ use bon::Builder;
 use mini_moka::sync::Cache as MokaCache;
 use neptunium_http::endpoints::users::UserProfileFullResponse;
 use neptunium_model::{
-    channel::{Channel, message::Message}, id::{Id, marker::{ChannelMarker, GuildMarker, MessageMarker, UserMarker}}, user::PartialUser
+    channel::{Channel, message::Message},
+    gateway::payload::incoming::UserPrivateResponse,
+    id::{
+        Id,
+        marker::{ChannelMarker, GuildMarker, MessageMarker, UserMarker},
+    },
+    user::PartialUser,
 };
 
 mod traits;
+use tokio::sync::OnceCell;
 pub use traits::*;
 
 pub type Cached<T> = Arc<tokio::sync::RwLock<T>>;
@@ -15,9 +22,11 @@ pub type Cached<T> = Arc<tokio::sync::RwLock<T>>;
 #[expect(clippy::type_complexity)]
 pub struct Cache {
     pub users: MokaCache<Id<UserMarker>, Cached<PartialUser>>,
-    pub user_profiles: MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<UserProfileFullResponse>>,
+    pub user_profiles:
+        MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<UserProfileFullResponse>>,
     pub channels: MokaCache<Id<ChannelMarker>, Cached<Channel>>,
     pub messages: MokaCache<Id<MessageMarker>, Cached<Message>>,
+    pub current_user: OnceCell<Cached<UserPrivateResponse>>,
 }
 
 #[derive(Builder, Copy, Clone, Debug)]
@@ -46,6 +55,7 @@ impl Cache {
             user_profiles: MokaCache::new(config.user_profiles),
             channels: MokaCache::new(config.channels),
             messages: MokaCache::new(config.messages),
+            current_user: OnceCell::new(),
         }
     }
 }
