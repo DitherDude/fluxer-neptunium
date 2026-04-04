@@ -60,7 +60,7 @@ use crate::{
 pub struct Context {
     pub(crate) http_client: Arc<HttpClient>,
     pub(crate) tx: UnboundedSender<ClientMessage>,
-    pub(crate) cache: crate::cache::Cache,
+    pub(crate) cache: Arc<neptunium_cache_inmemory::Cache>,
 }
 
 // TODO: Add errors docs

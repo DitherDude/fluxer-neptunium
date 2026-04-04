@@ -1,0 +1,22 @@
+[package]
+name = "neptunium-cache-inmemory"
+edition = "2024"
+version.workspace = true
+license.workspace = true
+description = "In-memory caching implementation for Fluxer."
+repository.workspace = true
+readme = "README.md"
+keywords = ["fluxer", "fluxer-neptunium"]
+publish = true
+categories = ["caching"]
+
+[dependencies]
+neptunium-model = { workspace = true }
+neptunium-http = { workspace = true }
+mini-moka = "0.10.3"
+bon = "3.9.1"
+async-trait = "0.1.89"
+tokio = { version = "1.51.0", default-features = false }
+
+[lints]
+workspace = true

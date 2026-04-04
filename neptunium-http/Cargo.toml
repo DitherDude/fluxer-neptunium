@@ -6,7 +6,7 @@ license.workspace = true
 description = "Interacting with the Fluxer HTTP API."
 repository.workspace = true
 readme = "README.md"
-keywords = ["api", "fluxer"]
+keywords = ["api", "fluxer", "fluxer-neptunium"]
 publish = true
 categories = ["api-bindings"]
 

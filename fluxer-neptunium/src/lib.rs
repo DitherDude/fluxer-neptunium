@@ -25,7 +25,6 @@
 //! }
 //! ```
 
-mod cache;
 pub mod client;
 pub mod events;
 pub mod exts;

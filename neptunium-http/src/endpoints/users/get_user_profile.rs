@@ -32,6 +32,12 @@ pub struct GetUserProfile {
 }
 
 #[derive(Deserialize, Clone, Debug)]
+pub struct MutualGuild {
+    pub id: Id<GuildMarker>,
+    pub nick: Option<String>,
+}
+
+#[derive(Deserialize, Clone, Debug)]
 pub struct UserProfileFullResponse {
     pub user: PartialUser,
     pub user_profile: UserProfileData,
@@ -43,8 +49,13 @@ pub struct UserProfileFullResponse {
     pub premium_type: Option<UserPremiumType>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub premium_since: Option<Timestamp<Iso8601>>,
+    /// Visionary ID.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub premium_lifetime_seqence: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mutual_friends: Option<Vec<PartialUser>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mutual_guilds: Option<Vec<MutualGuild>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub connected_accounts: Option<Vec<UserExternalAccountConnection>>,
 }

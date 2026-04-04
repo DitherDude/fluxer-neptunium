@@ -1,5 +1,6 @@
 use crate::{client::error::Error, events::context::Context, internal::traits::user::UserTrait};
 use async_trait::async_trait;
+use neptunium_cache_inmemory::{CachableEndpoint, Cached};
 use neptunium_http::endpoints::users::{
     GetUserById, GetUserProfile, GetUserProfileParams, UserProfileFullResponse,
 };
@@ -114,22 +115,20 @@ impl<T: UserTrait> UserExt for T {
         &self,
         ctx: &Context,
         params: GetUserProfileParams,
-    ) -> Result<UserProfileFullResponse, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(GetUserProfile {
-                user_id: self.get_user_id(),
-                params,
-            })
-            .await?)
+    ) -> Result<Cached<UserProfileFullResponse>, Error> {
+        Ok(GetUserProfile {
+            user_id: self.get_user_id(),
+            params,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
-    async fn get_user(&self, ctx: &Context) -> Result<PartialUser, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(GetUserById {
-                user_id: self.get_user_id(),
-            })
-            .await?)
+    async fn get_user(&self, ctx: &Context) -> Result<Cached<PartialUser>, Error> {
+        Ok(GetUserById {
+            user_id: self.get_user_id(),
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 }

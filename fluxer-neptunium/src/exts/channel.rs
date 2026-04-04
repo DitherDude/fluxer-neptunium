@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use neptunium_cache_inmemory::{
+    BatchCachableEndpoint, CachableEndpoint, Cached, NoReturnCachableEndpoint,
+};
 use neptunium_http::endpoints::{
     channel::{
         AddUserToGroupDm, BulkDeleteMessages, CallEligibilityStatus, ChannelSettingsUpdates,
@@ -38,8 +41,8 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         settings: ChannelSettingsUpdates,
-    ) -> Result<Arc<Channel>, Error>;
-    async fn fetch(&self, ctx: &Context) -> Result<Arc<Channel>, Error>;
+    ) -> Result<Cached<Channel>, Error>;
+    async fn fetch(&self, ctx: &Context) -> Result<Cached<Channel>, Error>;
     async fn get_call_eligibility_status(
         &self,
         ctx: &Context,
@@ -65,7 +68,7 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         params: ListChannelMessagesParams,
-    ) -> Result<Vec<Arc<Message>>, Error>;
+    ) -> Result<Vec<Cached<Message>>, Error>;
     async fn bulk_delete_messages(
         &self,
         ctx: &Context,
@@ -134,59 +137,42 @@ pub trait ChannelExt {
 #[async_trait]
 impl<T: ChannelTrait> ChannelExt for T {
     async fn delete(&self, ctx: &Context) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(
-                DeleteChannel::builder()
-                    .channel_id(self.get_channel_id())
-                    .build(),
-            )
-            .await?;
-        ctx.cache.remove(self.get_channel_id());
-        Ok(())
+        Ok(DeleteChannel {
+            channel_id: self.get_channel_id(),
+            silent: None,
+        }
+        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn delete_silent(&self, ctx: &Context) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(
-                DeleteChannel::builder()
-                    .channel_id(self.get_channel_id())
-                    .silent(true)
-                    .build(),
-            )
-            .await?;
-        ctx.cache.remove(self.get_channel_id());
-        Ok(())
+        Ok(DeleteChannel {
+            channel_id: self.get_channel_id(),
+            silent: Some(true),
+        }
+        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn update_settings(
         &self,
         ctx: &Context,
         settings: ChannelSettingsUpdates,
-    ) -> Result<Arc<Channel>, Error> {
-        let channel = ctx
-            .get_http_client()
-            .execute(
-                UpdateChannelSettings::builder()
-                    .channel_id(self.get_channel_id())
-                    .updates(settings)
-                    .build(),
-            )
-            .await?;
-        Ok(ctx.cache.insert(channel))
+    ) -> Result<Cached<Channel>, Error> {
+        Ok(UpdateChannelSettings {
+            channel_id: self.get_channel_id(),
+            updates: settings,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
-    async fn fetch(&self, ctx: &Context) -> Result<Arc<Channel>, Error> {
-        Ok(ctx
-            .cache
-            .get_or_try_compute_insert(
-                self.get_channel_id(),
-                ctx.get_http_client().execute(
-                    FetchChannel::builder()
-                        .channel_id(self.get_channel_id())
-                        .build(),
-                ),
-            )
-            .await?)
+    async fn fetch(&self, ctx: &Context) -> Result<Cached<Channel>, Error> {
+        Ok(FetchChannel {
+            channel_id: self.get_channel_id(),
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn get_call_eligibility_status(
@@ -204,20 +190,12 @@ impl<T: ChannelTrait> ChannelExt for T {
     }
 
     async fn update_call_region(&self, ctx: &Context, region: VoiceRegion) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(
-                UpdateCallRegion::builder()
-                    .channel_id(self.get_channel_id())
-                    .region(region.clone())
-                    .build(),
-            )
-            .await?;
-        if let Some(cached_channel) = ctx.cache.get(self.get_channel_id()) {
-            let mut updated_channel = (*cached_channel).clone();
-            updated_channel.rtc_region = Some(region);
-            ctx.cache.insert_without_returning_value(updated_channel);
+        Ok(UpdateCallRegion {
+            channel_id: self.get_channel_id(),
+            region,
         }
-        Ok(())
+        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn ring_call_recipients(
@@ -256,17 +234,13 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         params: ListChannelMessagesParams,
-    ) -> Result<Vec<Arc<Message>>, Error> {
-        let messages = ctx
-            .get_http_client()
-            .execute(
-                ListChannelMessages::builder()
-                    .channel_id(self.get_channel_id())
-                    .params(params)
-                    .build(),
-            )
-            .await?;
-        Ok(ctx.cache.batch_insert(messages))
+    ) -> Result<Vec<Cached<Message>>, Error> {
+        Ok(ListChannelMessages {
+            channel_id: self.get_channel_id(),
+            params,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn bulk_delete_messages(
@@ -274,18 +248,12 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         messages: Vec<Id<MessageMarker>>,
     ) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(
-                BulkDeleteMessages::builder()
-                    .channel_id(self.get_channel_id())
-                    .messages(messages.clone())
-                    .build(),
-            )
-            .await?;
-        for message_id in messages {
-            ctx.cache.remove(message_id);
+        Ok(BulkDeleteMessages {
+            channel_id: self.get_channel_id(),
+            messages,
         }
-        Ok(())
+        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn send_message(
