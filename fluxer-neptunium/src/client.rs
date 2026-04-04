@@ -1,5 +1,6 @@
 use std::{ops::Deref, sync::Arc, time::Duration};
 
+use neptunium_cache_inmemory::Cache;
 use neptunium_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
 use neptunium_http::client::HttpClient;
 use neptunium_model::gateway::{
@@ -12,7 +13,6 @@ use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
 use zeroize::Zeroizing;
 
 use crate::{
-    cache::Cache,
     client::error::{ClientErrorKind, Error},
     events::{EventError, EventHandler, context::Context},
 };
@@ -107,7 +107,7 @@ impl Client {
             context: Context {
                 http_client: Arc::new(api_client),
                 tx: tx.clone(),
-                cache: Cache::new(client_config.cache_config),
+                cache: Arc::new(Cache::new(client_config.cache_config)),
             },
             tx,
             rx,

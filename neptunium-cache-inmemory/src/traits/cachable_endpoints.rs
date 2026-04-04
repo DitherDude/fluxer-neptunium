@@ -1,39 +1,46 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
+
+#[cfg(feature = "user_api")]
+use std::collections::HashMap;
+
+#[cfg(feature = "user_api")]
+use neptunium_http::endpoints::{
+    channel::PreloadMessagesForChannels,
+    users::{ListCurrentUserMentions, UpdateCurrentUserProfile},
+};
+
+#[cfg(feature = "user_api")]
+use neptunium_model::id::{Id, marker::ChannelMarker};
 
 use async_trait::async_trait;
 use neptunium_http::{
     client::HttpClient,
     endpoints::{
-        ExecuteEndpointRequestError,
+        Endpoint, ExecuteEndpointRequestError,
         channel::{
-            BulkDeleteMessages, CreatePrivateChannel, DeleteChannel, FetchChannel,
-            ListChannelMessages, ListPrivateChannels, PreloadMessagesForChannels, UpdateCallRegion,
-            UpdateChannelSettings,
+            AddUserToGroupDm, BulkDeleteMessages, CreateMessage, CreatePrivateChannel,
+            DeleteChannel, DeletePermissionOverwrite, GetChannel, ListChannelMessages,
+            ListPrivateChannels, SetPermissionOverwrite, UpdateCallRegion, UpdateChannelSettings,
         },
-        users::{
-            GetCurrentUserProfile, GetUserById, GetUserProfile, ListCurrentUserMentions,
-            UpdateCurrentUserProfile,
-        },
+        users::{GetCurrentUserProfile, GetUserById, GetUserProfile},
     },
 };
 use neptunium_model::{
-    channel::{Channel, message::Message},
-    id::{Id, marker::ChannelMarker},
+    channel::{PermissionOverwrite, message::Message},
+    guild::permissions::Permissions,
 };
 use tokio::sync::RwLock;
 
-use crate::{
-    BatchCachableEndpoint, CachableEndpoint, Cache, Cached, NoReturnCachableEndpoint,
-    traits::CacheValue,
-};
+use crate::{CachableEndpoint, Cache, Cached, CachedChannel, traits::CacheValue};
 
 #[async_trait]
 impl CachableEndpoint for GetUserById {
+    type Response = Cached<<Self as Endpoint>::Response>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         if let Some(cached_user) = cache.users.get(&self.user_id) {
             return Ok(cached_user);
         }
@@ -47,11 +54,12 @@ impl CachableEndpoint for GetUserById {
 
 #[async_trait]
 impl CachableEndpoint for GetUserProfile {
+    type Response = Cached<<Self as Endpoint>::Response>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let cache_key = (self.user_id, self.params.guild_id);
         let cached_profile = cache.user_profiles.get(&cache_key);
         let return_cached_profile = 'blk: {
@@ -103,12 +111,13 @@ impl CachableEndpoint for GetUserProfile {
 }
 
 #[async_trait]
-impl NoReturnCachableEndpoint for DeleteChannel {
-    async fn noreturn_execute_cached(
+impl CachableEndpoint for DeleteChannel {
+    type Response = <Self as Endpoint>::Response;
+    async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Self::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let channel_id = self.channel_id;
         client.execute(self).await?;
         cache.channels.invalidate(&channel_id);
@@ -117,39 +126,42 @@ impl NoReturnCachableEndpoint for DeleteChannel {
 }
 
 #[async_trait]
-impl CachableEndpoint for FetchChannel {
+impl CachableEndpoint for GetChannel {
+    type Response = Cached<CachedChannel>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         if let Some(cached_channel) = cache.channels.get(&self.channel_id) {
             return Ok(cached_channel);
         }
         let res = client.execute(self).await?;
-        Ok(res.insert_and_return(cache).await)
+        Ok(CachedChannel::from(res).insert_and_return(cache).await)
     }
 }
 
 #[async_trait]
 impl CachableEndpoint for UpdateChannelSettings {
+    type Response = Cached<CachedChannel>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(res.insert_and_return(cache).await)
+        Ok(CachedChannel::from(res).insert_and_return(cache).await)
     }
 }
 
 #[async_trait]
-impl NoReturnCachableEndpoint for UpdateCallRegion {
-    async fn noreturn_execute_cached(
+impl CachableEndpoint for UpdateCallRegion {
+    type Response = <Self as Endpoint>::Response;
+    async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Self::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let channel_id = self.channel_id;
         let region_clone = self.region.clone();
         client.execute(self).await?;
@@ -162,12 +174,13 @@ impl NoReturnCachableEndpoint for UpdateCallRegion {
 }
 
 #[async_trait]
-impl NoReturnCachableEndpoint for BulkDeleteMessages {
-    async fn noreturn_execute_cached(
+impl CachableEndpoint for BulkDeleteMessages {
+    type Response = <Self as Endpoint>::Response;
+    async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Self::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let messages = self.messages.clone();
         client.execute(self).await?;
         for message in messages {
@@ -178,13 +191,13 @@ impl NoReturnCachableEndpoint for BulkDeleteMessages {
 }
 
 #[async_trait]
-impl BatchCachableEndpoint for ListChannelMessages {
+impl CachableEndpoint for ListChannelMessages {
     type Response = Vec<Cached<Message>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         let mut cached_messages = Vec::with_capacity(res.len());
         for message in res {
@@ -196,40 +209,43 @@ impl BatchCachableEndpoint for ListChannelMessages {
 
 #[async_trait]
 impl CachableEndpoint for GetCurrentUserProfile {
+    type Response = Cached<<Self as Endpoint>::Response>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         Ok(res.insert_and_return(cache).await)
     }
 }
 
+#[cfg(feature = "user_api")]
 #[async_trait]
 impl CachableEndpoint for UpdateCurrentUserProfile {
+    type Response = Cached<<Self as Endpoint>::Response>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         Ok(res.insert_and_return(cache).await)
     }
 }
 
 #[async_trait]
-impl BatchCachableEndpoint for ListPrivateChannels {
-    type Response = Vec<Cached<Channel>>;
+impl CachableEndpoint for ListPrivateChannels {
+    type Response = Vec<Cached<CachedChannel>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         let mut cached_channels = Vec::with_capacity(res.len());
         for channel in res {
-            cached_channels.push(channel.insert_and_return(cache).await);
+            cached_channels.push(CachedChannel::from(channel).insert_and_return(cache).await);
         }
         Ok(cached_channels)
     }
@@ -237,23 +253,27 @@ impl BatchCachableEndpoint for ListPrivateChannels {
 
 #[async_trait]
 impl CachableEndpoint for CreatePrivateChannel {
+    type Response = Cached<CachedChannel>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>> {
-        Ok(client.execute(self).await?.insert_and_return(cache).await)
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        Ok(CachedChannel::from(client.execute(self).await?)
+            .insert_and_return(cache)
+            .await)
     }
 }
 
+#[cfg(feature = "user_api")]
 #[async_trait]
-impl BatchCachableEndpoint for ListCurrentUserMentions {
+impl CachableEndpoint for ListCurrentUserMentions {
     type Response = Vec<Cached<Message>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         let mut cached_messages = Vec::with_capacity(res.len());
         for message in res {
@@ -263,19 +283,112 @@ impl BatchCachableEndpoint for ListCurrentUserMentions {
     }
 }
 
+#[cfg(feature = "user_api")]
 #[async_trait]
-impl BatchCachableEndpoint for PreloadMessagesForChannels {
+impl CachableEndpoint for PreloadMessagesForChannels {
     type Response = HashMap<Id<ChannelMarker>, Cached<Message>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         let mut cached_messages = HashMap::with_capacity(res.len());
         for (id, message) in res {
             cached_messages.insert(id, message.insert_and_return(cache).await);
         }
         Ok(cached_messages)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for CreateMessage {
+    type Response = Cached<<Self as Endpoint>::Response>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        Ok(client.execute(self).await?.insert_and_return(cache).await)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for SetPermissionOverwrite {
+    type Response = <Self as Endpoint>::Response;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        client.execute(self).await?;
+        if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
+            let mut guard = existing_channel.write().await;
+            if let Some(existing_overwrites) = &mut guard.permission_overwrites {
+                for existing_overwrite in existing_overwrites {
+                    if existing_overwrite.id == self.overwrite.id {
+                        // https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/api/src/channel/controllers/ChannelController.tsx#L272
+                        // Permission overwrites are set to 0 (empty) if they were not provided in the request.
+                        existing_overwrite.allow =
+                            self.overwrite.allow.unwrap_or(Permissions::empty());
+                        existing_overwrite.deny =
+                            self.overwrite.deny.unwrap_or(Permissions::empty());
+                    }
+                }
+            } else {
+                guard.permission_overwrites = Some(vec![PermissionOverwrite {
+                    allow: self.overwrite.allow.unwrap_or(Permissions::empty()),
+                    deny: self.overwrite.deny.unwrap_or(Permissions::empty()),
+                    id: self.overwrite.id,
+                    r#type: self.overwrite.r#type,
+                }]);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for DeletePermissionOverwrite {
+    type Response = <Self as Endpoint>::Response;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        client.execute(self).await?;
+        if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
+            let mut guard = existing_channel.write().await;
+            if let Some(existing_overwrites) = &mut guard.permission_overwrites {
+                existing_overwrites.retain(|overwrite| overwrite.id != self.overwrite_id);
+            }
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for AddUserToGroupDm {
+    type Response = ();
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        client.execute(self).await?;
+        let Some(cached_user) = cache.users.get(&self.user_id) else {
+            // TODO: Maybe spawn a new task to fetch the user, but this might not be a good idea
+            return Ok(());
+        };
+        if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
+            let mut guard = existing_channel.write().await;
+            let Some(recipients) = &mut guard.recipients else {
+                drop(guard);
+                tracing::warn!(%self.channel_id, "Cached group DM channel does not have participants.");
+                return Ok(());
+            };
+            recipients.push(cached_user);
+        }
+        Ok(())
     }
 }

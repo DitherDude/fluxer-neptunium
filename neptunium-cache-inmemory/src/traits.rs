@@ -1,15 +1,12 @@
 use std::sync::Arc;
 
-use crate::{Cache, Cached};
+use crate::{Cache, Cached, CachedChannel};
 use async_trait::async_trait;
 use neptunium_http::{
     client::HttpClient,
     endpoints::{Endpoint, ExecuteEndpointRequestError},
 };
-use neptunium_model::{
-    channel::{Channel, message::Message},
-    gateway::payload::incoming::UserPrivateResponse,
-};
+use neptunium_model::{channel::message::Message, gateway::payload::incoming::UserPrivateResponse};
 use tokio::sync::RwLock;
 
 pub mod cachable_endpoints;
@@ -20,6 +17,7 @@ trait CacheValue {
 
 #[async_trait]
 pub trait CachableEndpoint: Endpoint {
+    type Response;
     /// Either get the result from the cache or execute the request.
     /// # Errors
     /// Returns an error if the HTTP request fails or parsing the response fails.
@@ -27,30 +25,10 @@ pub trait CachableEndpoint: Endpoint {
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
-    ) -> Result<Cached<Self::Response>, Box<ExecuteEndpointRequestError>>;
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>>;
 }
 
-#[async_trait]
-pub trait BatchCachableEndpoint: Endpoint {
-    type Response;
-    async fn execute_cached(
-        self,
-        client: &Arc<HttpClient>,
-        cache: &Arc<Cache>,
-    ) -> Result<<Self as BatchCachableEndpoint>::Response, Box<ExecuteEndpointRequestError>>;
-}
-
-// TODO: A better name
-#[async_trait]
-pub trait NoReturnCachableEndpoint: Endpoint {
-    async fn noreturn_execute_cached(
-        self,
-        client: &Arc<HttpClient>,
-        cache: &Arc<Cache>,
-    ) -> Result<Self::Response, Box<ExecuteEndpointRequestError>>;
-}
-
-impl CacheValue for Channel {
+impl CacheValue for CachedChannel {
     async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let channel_id = self.id;
         if let Some(existing_channel) = cache.channels.get(&channel_id) {

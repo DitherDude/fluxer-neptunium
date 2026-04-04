@@ -8,11 +8,11 @@ use reqwest::Method;
 use crate::{endpoints::Endpoint, request::Request};
 
 #[derive(Builder, Copy, Clone, Debug)]
-pub struct FetchChannel {
+pub struct GetChannel {
     pub channel_id: Id<ChannelMarker>,
 }
 
-impl Endpoint for FetchChannel {
+impl Endpoint for GetChannel {
     type Response = Channel;
 
     fn into_request(self) -> crate::request::Request {

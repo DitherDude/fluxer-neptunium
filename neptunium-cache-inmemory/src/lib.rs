@@ -4,7 +4,7 @@ use bon::Builder;
 use mini_moka::sync::Cache as MokaCache;
 use neptunium_http::endpoints::users::UserProfileFullResponse;
 use neptunium_model::{
-    channel::{Channel, message::Message},
+    channel::message::Message,
     gateway::payload::incoming::UserPrivateResponse,
     id::{
         Id,
@@ -12,9 +12,11 @@ use neptunium_model::{
     },
     user::PartialUser,
 };
-
-mod traits;
 use tokio::sync::OnceCell;
+
+mod structs;
+mod traits;
+pub use structs::*;
 pub use traits::*;
 
 pub type Cached<T> = Arc<tokio::sync::RwLock<T>>;
@@ -24,7 +26,7 @@ pub struct Cache {
     pub users: MokaCache<Id<UserMarker>, Cached<PartialUser>>,
     pub user_profiles:
         MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<UserProfileFullResponse>>,
-    pub channels: MokaCache<Id<ChannelMarker>, Cached<Channel>>,
+    pub channels: MokaCache<Id<ChannelMarker>, Cached<CachedChannel>>,
     pub messages: MokaCache<Id<MessageMarker>, Cached<Message>>,
     pub current_user: OnceCell<Cached<UserPrivateResponse>>,
 }

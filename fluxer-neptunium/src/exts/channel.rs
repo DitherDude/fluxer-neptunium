@@ -1,25 +1,21 @@
-use std::sync::Arc;
-
 use async_trait::async_trait;
-use neptunium_cache_inmemory::{
-    BatchCachableEndpoint, CachableEndpoint, Cached, NoReturnCachableEndpoint,
-};
+use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel};
 use neptunium_http::endpoints::{
     channel::{
         AddUserToGroupDm, BulkDeleteMessages, CallEligibilityStatus, ChannelSettingsUpdates,
-        CreateMessage, CreateMessageBody, DeleteChannel, DeletePermissionOverwrite, FetchChannel,
-        GetCallEligibilityStatus, IndicateTyping, ListChannelMessages, ListChannelMessagesParams,
-        ListRtcRegions, ListRtcRegionsResponseEntry, PermissionOverwriteUpdate,
-        PinDirectMessageChannel, RemoveUserFromGroupDm, RingCallRecipients, SetPermissionOverwrite,
-        StopRingingCallRecipients, UnpinDirectMessageChannel, UpdateCallRegion,
-        UpdateChannelSettings,
+        CreateMessage, CreateMessageBody, DeleteChannel, DeletePermissionOverwrite,
+        GetCallEligibilityStatus, GetChannel, IndicateTyping, ListChannelMessages,
+        ListChannelMessagesParams, ListRtcRegions, ListRtcRegionsResponseEntry,
+        PermissionOverwriteUpdate, PinDirectMessageChannel, RemoveUserFromGroupDm,
+        RingCallRecipients, SetPermissionOverwrite, StopRingingCallRecipients,
+        UnpinDirectMessageChannel, UpdateCallRegion, UpdateChannelSettings,
     },
     invites::{CreateChannelInvite, CreateChannelInviteOptions, ListChannelInvites},
     webhooks::{CreateWebhook, ListChannelWebhooks},
 };
 use neptunium_model::{
-    channel::{Channel, PermissionOverwrite, VoiceRegion, message::Message},
-    guild::{permissions::Permissions, webhook::Webhook},
+    channel::{VoiceRegion, message::Message},
+    guild::webhook::Webhook,
     id::{
         Id,
         marker::{GenericMarker, MessageMarker, UserMarker},
@@ -41,8 +37,8 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         settings: ChannelSettingsUpdates,
-    ) -> Result<Cached<Channel>, Error>;
-    async fn fetch(&self, ctx: &Context) -> Result<Cached<Channel>, Error>;
+    ) -> Result<Cached<CachedChannel>, Error>;
+    async fn get(&self, ctx: &Context) -> Result<Cached<CachedChannel>, Error>;
     async fn get_call_eligibility_status(
         &self,
         ctx: &Context,
@@ -79,12 +75,12 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Arc<Message>, Error>;
+    ) -> Result<Cached<Message>, Error>;
     async fn create_message(
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Arc<Message>, Error>;
+    ) -> Result<Cached<Message>, Error>;
     async fn set_permission_overwrite(
         &self,
         ctx: &Context,
@@ -141,7 +137,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             channel_id: self.get_channel_id(),
             silent: None,
         }
-        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
         .await?)
     }
 
@@ -150,7 +146,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             channel_id: self.get_channel_id(),
             silent: Some(true),
         }
-        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
         .await?)
     }
 
@@ -158,7 +154,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         settings: ChannelSettingsUpdates,
-    ) -> Result<Cached<Channel>, Error> {
+    ) -> Result<Cached<CachedChannel>, Error> {
         Ok(UpdateChannelSettings {
             channel_id: self.get_channel_id(),
             updates: settings,
@@ -167,8 +163,8 @@ impl<T: ChannelTrait> ChannelExt for T {
         .await?)
     }
 
-    async fn fetch(&self, ctx: &Context) -> Result<Cached<Channel>, Error> {
-        Ok(FetchChannel {
+    async fn get(&self, ctx: &Context) -> Result<Cached<CachedChannel>, Error> {
+        Ok(GetChannel {
             channel_id: self.get_channel_id(),
         }
         .execute_cached(ctx.get_http_client(), &ctx.cache)
@@ -194,7 +190,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             channel_id: self.get_channel_id(),
             region,
         }
-        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
         .await?)
     }
 
@@ -252,7 +248,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             channel_id: self.get_channel_id(),
             messages,
         }
-        .noreturn_execute_cached(ctx.get_http_client(), &ctx.cache)
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
         .await?)
     }
 
@@ -260,7 +256,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Arc<Message>, Error> {
+    ) -> Result<Cached<Message>, Error> {
         self.create_message(ctx, message).await
     }
 
@@ -268,17 +264,13 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Arc<Message>, Error> {
-        let message = ctx
-            .get_http_client()
-            .execute(
-                CreateMessage::builder()
-                    .channel_id(self.get_channel_id())
-                    .message(message)
-                    .build(),
-            )
-            .await?;
-        Ok(ctx.cache.insert(message))
+    ) -> Result<Cached<Message>, Error> {
+        Ok(CreateMessage {
+            channel_id: self.get_channel_id(),
+            message,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn set_permission_overwrite(
@@ -286,35 +278,12 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         update: PermissionOverwriteUpdate,
     ) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(SetPermissionOverwrite {
-                channel_id: self.get_channel_id(),
-                overwrite: update,
-            })
-            .await?;
-        if let Some(cached_channel) = ctx.cache.get(self.get_channel_id()) {
-            let mut updated_channel = (*cached_channel).clone();
-            if let Some(permission_overwrites) = &mut updated_channel.permission_overwrites {
-                if let Some(existing_overwrite) = permission_overwrites
-                    .iter_mut()
-                    .find(|overwrite| overwrite.id == update.id)
-                {
-                    // https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/api/src/channel/controllers/ChannelController.tsx#L272
-                    // Permission overwrites are set to 0 (empty) if they were not provided in the request.
-                    existing_overwrite.allow = update.allow.unwrap_or(Permissions::empty());
-                    existing_overwrite.deny = update.deny.unwrap_or(Permissions::empty());
-                }
-            } else {
-                updated_channel.permission_overwrites = Some(vec![PermissionOverwrite {
-                    allow: update.allow.unwrap_or(Permissions::empty()),
-                    deny: update.deny.unwrap_or(Permissions::empty()),
-                    id: update.id,
-                    r#type: update.r#type,
-                }]);
-            }
-            ctx.cache.insert_without_returning_value(updated_channel);
+        Ok(SetPermissionOverwrite {
+            channel_id: self.get_channel_id(),
+            overwrite: update,
         }
-        Ok(())
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn delete_permission_overwrite(
@@ -322,20 +291,12 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         overwrite_id: Id<GenericMarker>,
     ) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(DeletePermissionOverwrite {
-                channel_id: self.get_channel_id(),
-                overwrite_id,
-            })
-            .await?;
-        if let Some(cached_channel) = ctx.cache.get(self.get_channel_id()) {
-            let mut updated_channel = (*cached_channel).clone();
-            if let Some(existing_overwrites) = &mut updated_channel.permission_overwrites {
-                existing_overwrites.retain(|overwrite| overwrite.id != overwrite_id);
-            }
-            ctx.cache.insert_without_returning_value(updated_channel);
+        Ok(DeletePermissionOverwrite {
+            channel_id: self.get_channel_id(),
+            overwrite_id,
         }
-        Ok(())
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     #[cfg(feature = "user_api")]
@@ -355,37 +316,12 @@ impl<T: ChannelTrait> ChannelExt for T {
         ctx: &Context,
         user_id: Id<UserMarker>,
     ) -> Result<(), Error> {
-        ctx.get_http_client()
-            .execute(AddUserToGroupDm {
-                channel_id: self.get_channel_id(),
-                user_id,
-            })
-            .await?;
-        let Some(cached_user) = ctx.cache.get(user_id) else {
-            // If we don't have the user cached, simply return. Sadly this invalidates the cache
-            return Ok(());
-        };
-        if let Some(existing_channel) = ctx.cache.get(self.get_channel_id()) {
-            let mut modified_channel = (*existing_channel).clone();
-            let Some(recipients) = &mut modified_channel.recipients else {
-                tracing::warn!(
-                    "Group DM channel {} is present in the cache but has participants set to None.",
-                    self.get_channel_id()
-                );
-                return Ok(());
-            };
-            if recipients
-                .iter()
-                .filter(|partial_user| partial_user.id == user_id)
-                .count()
-                == 0
-            {
-                recipients.push((*cached_user).clone());
-            }
-            ctx.cache.insert_without_returning_value(modified_channel);
+        Ok(AddUserToGroupDm {
+            channel_id: self.get_channel_id(),
+            user_id,
         }
-
-        Ok(())
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
     // TODO: Caching for all below functions:
     async fn remove_user_from_group_dm(

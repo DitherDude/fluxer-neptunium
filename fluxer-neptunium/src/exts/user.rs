@@ -35,8 +35,8 @@ pub trait UserExt {
         &self,
         ctx: &Context,
         params: GetUserProfileParams,
-    ) -> Result<UserProfileFullResponse, Error>;
-    async fn get_user(&self, ctx: &Context) -> Result<PartialUser, Error>;
+    ) -> Result<Cached<UserProfileFullResponse>, Error>;
+    async fn get_user(&self, ctx: &Context) -> Result<Cached<PartialUser>, Error>;
 }
 
 #[async_trait]

@@ -2,7 +2,7 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use neptunium_cache_inmemory::{BatchCachableEndpoint, CachableEndpoint, Cached};
+use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel};
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::{
     channel::ScheduledMessageResponse,
@@ -31,12 +31,6 @@ use neptunium_http::{
         users::GetCurrentUserProfile,
     },
 };
-use neptunium_model::{
-    channel::Channel,
-    gateway::payload::{incoming::UserPrivateResponse, outgoing::PresenceUpdateOutgoing},
-    guild::Guild,
-    id::{Id, marker::ChannelMarker},
-};
 #[cfg(feature = "user_api")]
 use neptunium_model::{
     channel::message::Message,
@@ -49,6 +43,11 @@ use neptunium_model::{
         saved_messages::SavedMessage,
         settings::{UserGuildSettings, UserSettings},
     },
+};
+use neptunium_model::{
+    gateway::payload::{incoming::UserPrivateResponse, outgoing::PresenceUpdateOutgoing},
+    guild::Guild,
+    id::{Id, marker::ChannelMarker},
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -88,8 +87,8 @@ impl Context {
     pub async fn fetch_channel(
         &self,
         channel_id: Id<ChannelMarker>,
-    ) -> Result<Cached<Channel>, Error> {
-        channel_id.fetch(self).await
+    ) -> Result<Cached<CachedChannel>, Error> {
+        channel_id.get(self).await
     }
 
     /// Get the gateway information from the API.
@@ -151,7 +150,7 @@ impl Context {
     }
 
     /// List DM channels. This includes group DMs.
-    pub async fn list_own_private_channels(&self) -> Result<Vec<Cached<Channel>>, Error> {
+    pub async fn list_own_private_channels(&self) -> Result<Vec<Cached<CachedChannel>>, Error> {
         Ok(ListPrivateChannels
             .execute_cached(self.get_http_client(), &self.cache)
             .await?)
@@ -161,7 +160,7 @@ impl Context {
     pub async fn create_private_channel(
         &self,
         body: CreatePrivateChannel,
-    ) -> Result<Cached<Channel>, Error> {
+    ) -> Result<Cached<CachedChannel>, Error> {
         Ok(body
             .execute_cached(self.get_http_client(), &self.cache)
             .await?)

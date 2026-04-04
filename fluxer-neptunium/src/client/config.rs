@@ -1,9 +1,8 @@
 use std::time::Duration;
 
 use bon::Builder;
+use neptunium_cache_inmemory::CacheConfig;
 use neptunium_http::DEFAULT_API_BASE_URL;
-
-use crate::cache::CacheConfig;
 
 #[derive(Builder, Debug)]
 pub struct ClientConfig {
