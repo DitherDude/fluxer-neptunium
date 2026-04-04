@@ -20,7 +20,8 @@ use neptunium_http::{
         channel::{
             AddUserToGroupDm, BulkDeleteMessages, CreateMessage, CreatePrivateChannel,
             DeleteChannel, DeletePermissionOverwrite, GetChannel, ListChannelMessages,
-            ListPrivateChannels, SetPermissionOverwrite, UpdateCallRegion, UpdateChannelSettings,
+            ListPrivateChannels, RemoveUserFromGroupDm, SetPermissionOverwrite, UpdateCallRegion,
+            UpdateChannelSettings,
         },
         users::{GetCurrentUserProfile, GetUserById, GetUserProfile},
     },
@@ -384,10 +385,45 @@ impl CachableEndpoint for AddUserToGroupDm {
             let mut guard = existing_channel.write().await;
             let Some(recipients) = &mut guard.recipients else {
                 drop(guard);
-                tracing::warn!(%self.channel_id, "Cached group DM channel does not have participants.");
+                tracing::warn!(%self.channel_id, "Cached group DM channel does not have recipients.");
                 return Ok(());
             };
             recipients.push(cached_user);
+        }
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for RemoveUserFromGroupDm {
+    type Response = ();
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        client.execute(self).await?;
+        if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
+            let mut guard = existing_channel.write().await;
+            let Some(recipients) = &mut guard.recipients else {
+                drop(guard);
+                tracing::warn!(%self.channel_id, "Cached group DM channel does not have recipients.");
+                return Ok(());
+            };
+            let mut index = None;
+            for (i, recipient) in recipients.iter().enumerate() {
+                let guard = recipient.read().await;
+                if guard.id == self.user_id {
+                    index = Some(i);
+                    break;
+                }
+            }
+            let Some(index) = index else {
+                drop(guard);
+                tracing::trace!("Group DM recipient was not cached.");
+                return Ok(());
+            };
+            recipients.remove(index);
         }
         Ok(())
     }

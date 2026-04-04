@@ -323,23 +323,22 @@ impl<T: ChannelTrait> ChannelExt for T {
         .execute_cached(ctx.get_http_client(), &ctx.cache)
         .await?)
     }
-    // TODO: Caching for all below functions:
+
     async fn remove_user_from_group_dm(
         &self,
         ctx: &Context,
         user_id: Id<UserMarker>,
         silent: bool,
     ) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(RemoveUserFromGroupDm {
-                channel_id: self.get_channel_id(),
-                user_id,
-                silent,
-            })
-            .await?)
+        Ok(RemoveUserFromGroupDm {
+            channel_id: self.get_channel_id(),
+            silent,
+            user_id,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
-
+    // TODO: Caching for all below functions:
     async fn list_rtc_regions(
         &self,
         ctx: &Context,
