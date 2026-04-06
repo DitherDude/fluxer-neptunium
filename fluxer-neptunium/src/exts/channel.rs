@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel};
+use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel, CachedMessage};
 use neptunium_http::endpoints::{
     channel::{
         AddUserToGroupDm, BulkDeleteMessages, CallEligibilityStatus, ChannelSettingsUpdates,
@@ -14,7 +14,7 @@ use neptunium_http::endpoints::{
     webhooks::{CreateWebhook, ListChannelWebhooks},
 };
 use neptunium_model::{
-    channel::{VoiceRegion, message::Message},
+    channel::VoiceRegion,
     guild::webhook::Webhook,
     id::{
         Id,
@@ -64,7 +64,7 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         params: ListChannelMessagesParams,
-    ) -> Result<Vec<Cached<Message>>, Error>;
+    ) -> Result<Vec<Cached<CachedMessage>>, Error>;
     async fn bulk_delete_messages(
         &self,
         ctx: &Context,
@@ -75,12 +75,12 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Cached<Message>, Error>;
+    ) -> Result<Cached<CachedMessage>, Error>;
     async fn create_message(
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Cached<Message>, Error>;
+    ) -> Result<Cached<CachedMessage>, Error>;
     async fn set_permission_overwrite(
         &self,
         ctx: &Context,
@@ -232,7 +232,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         params: ListChannelMessagesParams,
-    ) -> Result<Vec<Cached<Message>>, Error> {
+    ) -> Result<Vec<Cached<CachedMessage>>, Error> {
         Ok(ListChannelMessages {
             channel_id: self.get_channel_id(),
             params,
@@ -258,7 +258,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Cached<Message>, Error> {
+    ) -> Result<Cached<CachedMessage>, Error> {
         self.create_message(ctx, message).await
     }
 
@@ -266,7 +266,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         message: CreateMessageBody,
-    ) -> Result<Cached<Message>, Error> {
+    ) -> Result<Cached<CachedMessage>, Error> {
         Ok(CreateMessage {
             channel_id: self.get_channel_id(),
             message,

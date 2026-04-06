@@ -4,7 +4,6 @@ use bon::Builder;
 use mini_moka::sync::Cache as MokaCache;
 use neptunium_http::endpoints::users::UserProfileFullResponse;
 use neptunium_model::{
-    channel::message::Message,
     gateway::payload::incoming::UserPrivateResponse,
     guild::Guild,
     id::{
@@ -30,7 +29,7 @@ pub struct Cache {
     pub user_profiles:
         MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<UserProfileFullResponse>>,
     pub channels: MokaCache<Id<ChannelMarker>, Cached<CachedChannel>>,
-    pub messages: MokaCache<Id<MessageMarker>, Cached<Message>>,
+    pub messages: MokaCache<Id<MessageMarker>, Cached<CachedMessage>>,
     pub current_user: OnceCell<Cached<UserPrivateResponse>>,
     pub current_user_settings: OnceCell<Cached<UserSettings>>,
     pub invites: MokaCache<String, Cached<InviteWithMetadata>>,

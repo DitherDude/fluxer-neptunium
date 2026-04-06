@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
-use crate::{Cache, Cached, CachedChannel};
+use crate::{Cache, Cached, CachedChannel, CachedMessage};
 use async_trait::async_trait;
 use neptunium_http::{
     client::HttpClient,
     endpoints::{Endpoint, ExecuteEndpointRequestError},
 };
 use neptunium_model::{
-    channel::message::Message,
     gateway::payload::incoming::UserPrivateResponse,
     guild::Guild,
     invites::{GroupDmInvite, GuildInvite, InviteWithMetadata, PackInvite},
@@ -50,7 +49,7 @@ impl CacheValue for CachedChannel {
     }
 }
 
-impl CacheValue for Message {
+impl CacheValue for CachedMessage {
     async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let message_id = self.id;
         if let Some(existing_message) = cache.messages.get(&message_id) {

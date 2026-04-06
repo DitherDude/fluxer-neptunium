@@ -33,13 +33,11 @@ use neptunium_http::{
     },
 };
 use neptunium_model::{
-    channel::{PermissionOverwrite, message::Message},
-    guild::permissions::Permissions,
-    invites::InviteWithMetadata,
+    channel::PermissionOverwrite, guild::permissions::Permissions, invites::InviteWithMetadata,
 };
 use tokio::sync::RwLock;
 
-use crate::{CachableEndpoint, Cache, Cached, CachedChannel, traits::CacheValue};
+use crate::{CachableEndpoint, Cache, Cached, CachedChannel, CachedMessage, traits::CacheValue};
 
 #[async_trait]
 impl CachableEndpoint for GetUserById {
@@ -145,7 +143,10 @@ impl CachableEndpoint for GetChannel {
             return Ok(cached_channel);
         }
         let res = client.execute(self).await?;
-        Ok(CachedChannel::from(res).insert_and_return(cache).await)
+        Ok(CachedChannel::from_channel(res, cache)
+            .await
+            .insert_and_return(cache)
+            .await)
     }
 }
 
@@ -158,7 +159,10 @@ impl CachableEndpoint for UpdateChannelSettings {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(CachedChannel::from(res).insert_and_return(cache).await)
+        Ok(CachedChannel::from_channel(res, cache)
+            .await
+            .insert_and_return(cache)
+            .await)
     }
 }
 
@@ -200,7 +204,7 @@ impl CachableEndpoint for BulkDeleteMessages {
 
 #[async_trait]
 impl CachableEndpoint for ListChannelMessages {
-    type Response = Vec<Cached<Message>>;
+    type Response = Vec<Cached<CachedMessage>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
@@ -209,7 +213,12 @@ impl CachableEndpoint for ListChannelMessages {
         let res = client.execute(self).await?;
         let mut cached_messages = Vec::with_capacity(res.len());
         for message in res {
-            cached_messages.push(message.insert_and_return(cache).await);
+            cached_messages.push(
+                CachedMessage::from_message(message, cache)
+                    .await
+                    .insert_and_return(cache)
+                    .await,
+            );
         }
         Ok(cached_messages)
     }
@@ -253,7 +262,12 @@ impl CachableEndpoint for ListPrivateChannels {
         let res = client.execute(self).await?;
         let mut cached_channels = Vec::with_capacity(res.len());
         for channel in res {
-            cached_channels.push(CachedChannel::from(channel).insert_and_return(cache).await);
+            cached_channels.push(
+                CachedChannel::from_channel(channel, cache)
+                    .await
+                    .insert_and_return(cache)
+                    .await,
+            );
         }
         Ok(cached_channels)
     }
@@ -267,16 +281,19 @@ impl CachableEndpoint for CreatePrivateChannel {
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
-        Ok(CachedChannel::from(client.execute(self).await?)
-            .insert_and_return(cache)
-            .await)
+        Ok(
+            CachedChannel::from_channel(client.execute(self).await?, cache)
+                .await
+                .insert_and_return(cache)
+                .await,
+        )
     }
 }
 
 #[cfg(feature = "user_api")]
 #[async_trait]
 impl CachableEndpoint for ListCurrentUserMentions {
-    type Response = Vec<Cached<Message>>;
+    type Response = Vec<Cached<CachedMessage>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
@@ -285,7 +302,12 @@ impl CachableEndpoint for ListCurrentUserMentions {
         let res = client.execute(self).await?;
         let mut cached_messages = Vec::with_capacity(res.len());
         for message in res {
-            cached_messages.push(message.insert_and_return(cache).await);
+            cached_messages.push(
+                CachedMessage::from_message(message, cache)
+                    .await
+                    .insert_and_return(cache)
+                    .await,
+            );
         }
         Ok(cached_messages)
     }
@@ -294,7 +316,7 @@ impl CachableEndpoint for ListCurrentUserMentions {
 #[cfg(feature = "user_api")]
 #[async_trait]
 impl CachableEndpoint for PreloadMessagesForChannels {
-    type Response = HashMap<Id<ChannelMarker>, Cached<Message>>;
+    type Response = HashMap<Id<ChannelMarker>, Cached<CachedMessage>>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
@@ -303,7 +325,13 @@ impl CachableEndpoint for PreloadMessagesForChannels {
         let res = client.execute(self).await?;
         let mut cached_messages = HashMap::with_capacity(res.len());
         for (id, message) in res {
-            cached_messages.insert(id, message.insert_and_return(cache).await);
+            cached_messages.insert(
+                id,
+                CachedMessage::from_message(message, cache)
+                    .await
+                    .insert_and_return(cache)
+                    .await,
+            );
         }
         Ok(cached_messages)
     }
@@ -311,13 +339,18 @@ impl CachableEndpoint for PreloadMessagesForChannels {
 
 #[async_trait]
 impl CachableEndpoint for CreateMessage {
-    type Response = Cached<<Self as Endpoint>::Response>;
+    type Response = Cached<CachedMessage>;
     async fn execute_cached(
         self,
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
-        Ok(client.execute(self).await?.insert_and_return(cache).await)
+        Ok(
+            CachedMessage::from_message(client.execute(self).await?, cache)
+                .await
+                .insert_and_return(cache)
+                .await,
+        )
     }
 }
 

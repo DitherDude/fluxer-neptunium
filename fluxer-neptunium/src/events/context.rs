@@ -2,6 +2,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
+#[cfg(feature = "user_api")]
+use neptunium_cache_inmemory::CachedMessage;
 use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel};
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::{
@@ -387,7 +389,7 @@ impl Context {
     pub async fn list_own_mentions(
         &self,
         params: ListCurrentUserMentions,
-    ) -> Result<Vec<Cached<Message>>, Error> {
+    ) -> Result<Vec<Cached<CachedMessage>>, Error> {
         // let messages = self.http_client.execute(params).await?;
         // Ok(self.cache.batch_insert(messages))
         Ok(params
@@ -618,7 +620,7 @@ impl Context {
     pub async fn preload_messages_for_channels(
         &self,
         channel_ids: Vec<Id<ChannelMarker>>,
-    ) -> Result<HashMap<Id<ChannelMarker>, Cached<Message>>, Error> {
+    ) -> Result<HashMap<Id<ChannelMarker>, Cached<CachedMessage>>, Error> {
         use neptunium_http::endpoints::channel::PreloadMessagesForChannels;
 
         Ok(PreloadMessagesForChannels {

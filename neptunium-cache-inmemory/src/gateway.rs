@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use neptunium_model::{
-    channel::{Channel, message::Message},
+    channel::Channel,
     gateway::{
         event::dispatch::DispatchEvent,
         payload::incoming::{
@@ -27,7 +27,7 @@ use neptunium_model::{
 };
 
 use crate::{
-    Cache, CacheValue, Cached, CachedChannel,
+    Cache, CacheValue, Cached, CachedChannel, CachedMessage,
     gateway::cached_payload::{CachedReady, FromNonCached},
 };
 
@@ -63,9 +63,12 @@ pub async fn add_gateway_dispatch_event_to_cache(
         DispatchEvent::RecentMentionDelete(payload) => {
             CachedDispatchEvent::RecentMentionDelete(payload)
         }
-        DispatchEvent::SavedMessageCreate(payload) => {
-            CachedDispatchEvent::SavedMessageCreate(payload.insert_and_return(cache).await)
-        }
+        DispatchEvent::SavedMessageCreate(payload) => CachedDispatchEvent::SavedMessageCreate(
+            CachedMessage::from_message(payload, cache)
+                .await
+                .insert_and_return(cache)
+                .await,
+        ),
         DispatchEvent::SavedMessageDelete(payload) => {
             CachedDispatchEvent::SavedMessageDelete(payload)
         }
@@ -109,10 +112,16 @@ pub async fn add_gateway_dispatch_event_to_cache(
         DispatchEvent::GuildBanAdd(payload) => CachedDispatchEvent::GuildBanAdd(payload),
         DispatchEvent::GuildBanRemove(payload) => CachedDispatchEvent::GuildBanRemove(payload),
         DispatchEvent::ChannelCreate(payload) => CachedDispatchEvent::ChannelCreate(
-            CachedChannel::from(payload).insert_and_return(cache).await,
+            CachedChannel::from_channel(payload, cache)
+                .await
+                .insert_and_return(cache)
+                .await,
         ),
         DispatchEvent::ChannelUpdate(payload) => CachedDispatchEvent::ChannelUpdate(
-            CachedChannel::from(payload).insert_and_return(cache).await,
+            CachedChannel::from_channel(payload, cache)
+                .await
+                .insert_and_return(cache)
+                .await,
         ),
         DispatchEvent::ChannelUpdateBulk(payload) => {
             CachedDispatchEvent::ChannelUpdateBulk(payload)
@@ -129,9 +138,12 @@ pub async fn add_gateway_dispatch_event_to_cache(
             CachedDispatchEvent::ChannelRecipientRemove(payload)
         }
         DispatchEvent::MessageCreate(payload) => CachedDispatchEvent::MessageCreate(payload),
-        DispatchEvent::MessageUpdate(payload) => {
-            CachedDispatchEvent::MessageUpdate(payload.insert_and_return(cache).await)
-        }
+        DispatchEvent::MessageUpdate(payload) => CachedDispatchEvent::MessageUpdate(
+            CachedMessage::from_message(payload, cache)
+                .await
+                .insert_and_return(cache)
+                .await,
+        ),
         DispatchEvent::MessageDelete(payload) => CachedDispatchEvent::MessageDelete(payload),
         DispatchEvent::MessageDeleteBulk(payload) => {
             CachedDispatchEvent::MessageDeleteBulk(payload)
@@ -185,7 +197,7 @@ pub enum CachedDispatchEvent {
     UserGuildSettingsUpdate(UserGuildSettings),
     UserNoteUpdate(UserNoteUpdate),
     RecentMentionDelete(RecentMentionDelete),
-    SavedMessageCreate(Cached<Message>),
+    SavedMessageCreate(Cached<CachedMessage>),
     SavedMessageDelete(SavedMessageDelete),
     FavoriteMemeCreate(FavoriteMeme),
     FavoriteMemeUpdate(FavoriteMeme),
@@ -221,7 +233,7 @@ pub enum CachedDispatchEvent {
     /// Sent when a user is removed from a group DM.
     ChannelRecipientRemove(ChannelRecipientRemove),
     MessageCreate(MessageCreate),
-    MessageUpdate(Cached<Message>),
+    MessageUpdate(Cached<CachedMessage>),
     MessageDelete(MessageDelete),
     MessageDeleteBulk(MessageDeleteBulk),
     MessageReactionAdd(MessageReactionAdd),

@@ -1,17 +1,25 @@
 use std::{collections::HashMap, sync::Arc};
 
 use neptunium_model::{
-    channel::{Channel, ChannelType, PermissionOverwrite, VoiceRegion},
+    channel::{
+        Channel, ChannelType, PermissionOverwrite, VoiceRegion,
+        message::{
+            Message, MessageBase, MessageCall, MessageFlags, MessageReaction, MessageReference,
+            MessageSnapshot, MessageSticker, MessageType, attachment::MessageAttachment,
+            embed::MessageEmbed, nonce::Nonce,
+        },
+    },
     id::{
         Id,
-        marker::{ChannelMarker, GuildMarker, MessageMarker, UserMarker},
+        marker::{
+            ChannelMarker, GuildMarker, MessageMarker, RoleMarker, UserMarker, WebhookMarker,
+        },
     },
     time::timestamp::{Timestamp, representations::Iso8601},
     user::PartialUser,
 };
-use tokio::sync::RwLock;
 
-use crate::Cached;
+use crate::{Cache, CacheValue, Cached, gateway::cached_payload::cache_option_vec};
 
 #[derive(Clone, Debug)]
 pub struct CachedChannel {
@@ -79,16 +87,9 @@ impl CachedChannel {
             user_limit: self.user_limit,
         }
     }
-}
 
-impl From<Channel> for CachedChannel {
-    fn from(value: Channel) -> Self {
-        let recipients = value.recipients.map(|recipients| {
-            recipients
-                .into_iter()
-                .map(|recipient| Arc::new(RwLock::new(recipient)))
-                .collect()
-        });
+    pub async fn from_channel(value: Channel, cache: &Arc<Cache>) -> Self {
+        let recipients = cache_option_vec!(value.recipients, cache);
         Self {
             bitrate: value.bitrate,
             guild_id: value.guild_id,
@@ -110,6 +111,159 @@ impl From<Channel> for CachedChannel {
             r#type: value.r#type,
             url: value.url,
             user_limit: value.user_limit,
+        }
+    }
+}
+
+pub struct CachedMessage {
+    pub attachments: Option<Vec<MessageAttachment>>,
+    pub author: Cached<PartialUser>,
+    pub call: Option<MessageCall>,
+    pub channel_id: Id<ChannelMarker>,
+    pub content: String,
+    pub edited_timestamp: Option<Timestamp<Iso8601>>,
+    pub embeds: Option<Vec<MessageEmbed>>,
+    pub flags: MessageFlags,
+    pub id: Id<MessageMarker>,
+    pub mention_everyone: bool,
+    pub mention_roles: Option<Vec<Id<RoleMarker>>>,
+    pub mentions: Option<Vec<Cached<PartialUser>>>,
+    pub message_reference: Option<MessageReference>,
+    /// Snapshots of forwarded messages.
+    pub message_snapshots: Option<Vec<MessageSnapshot>>,
+    /// A client-provided value for message deduplication.
+    pub nonce: Option<Nonce>,
+    pub pinned: bool,
+    pub reactions: Option<Vec<MessageReaction>>,
+    pub stickers: Option<Vec<MessageSticker>>,
+    pub timestamp: Timestamp<Iso8601>,
+    pub tts: bool,
+    pub r#type: MessageType,
+    pub webhook_id: Option<Id<WebhookMarker>>,
+    /// The message that this message is replying to or forwarding.
+    pub referenced_message: Option<CachedMessageBase>,
+}
+
+impl CachedMessage {
+    pub async fn from_message(value: Message, cache: &Arc<Cache>) -> Self {
+        // To make rust happy, we need to destructure
+        let Message {
+            base:
+                MessageBase {
+                    attachments,
+                    author,
+                    call,
+                    channel_id,
+                    content,
+                    edited_timestamp,
+                    embeds,
+                    flags,
+                    id,
+                    mention_everyone,
+                    mention_roles,
+                    mentions,
+                    message_reference,
+                    message_snapshots,
+                    nonce,
+                    pinned,
+                    reactions,
+                    stickers,
+                    timestamp,
+                    tts,
+                    r#type,
+                    webhook_id,
+                },
+            referenced_message,
+        } = value;
+        let author = author.insert_and_return(cache).await;
+        let mentions = cache_option_vec!(mentions, cache);
+        let referenced_message = if let Some(referenced_message) = referenced_message {
+            Some(CachedMessageBase::from_message_base(referenced_message, cache).await)
+        } else {
+            None
+        };
+        Self {
+            attachments,
+            author,
+            call,
+            channel_id,
+            content,
+            edited_timestamp,
+            embeds,
+            flags,
+            id,
+            mention_everyone,
+            mention_roles,
+            mentions,
+            message_reference,
+            message_snapshots,
+            nonce,
+            pinned,
+            reactions,
+            stickers,
+            timestamp,
+            tts,
+            r#type,
+            webhook_id,
+            referenced_message,
+        }
+    }
+}
+
+pub struct CachedMessageBase {
+    pub attachments: Option<Vec<MessageAttachment>>,
+    pub author: Cached<PartialUser>,
+    pub call: Option<MessageCall>,
+    pub channel_id: Id<ChannelMarker>,
+    pub content: String,
+    pub edited_timestamp: Option<Timestamp<Iso8601>>,
+    pub embeds: Option<Vec<MessageEmbed>>,
+    pub flags: MessageFlags,
+    pub id: Id<MessageMarker>,
+    pub mention_everyone: bool,
+    pub mention_roles: Option<Vec<Id<RoleMarker>>>,
+    pub mentions: Option<Vec<Cached<PartialUser>>>,
+    pub message_reference: Option<MessageReference>,
+    /// Snapshots of forwarded messages.
+    pub message_snapshots: Option<Vec<MessageSnapshot>>,
+    /// A client-provided value for message deduplication.
+    pub nonce: Option<Nonce>,
+    pub pinned: bool,
+    pub reactions: Option<Vec<MessageReaction>>,
+    pub stickers: Option<Vec<MessageSticker>>,
+    pub timestamp: Timestamp<Iso8601>,
+    pub tts: bool,
+    pub r#type: MessageType,
+    pub webhook_id: Option<Id<WebhookMarker>>,
+}
+
+impl CachedMessageBase {
+    pub async fn from_message_base(value: MessageBase, cache: &Arc<Cache>) -> Self {
+        let author = value.author.insert_and_return(cache).await;
+        let mentions = cache_option_vec!(value.mentions, cache);
+        Self {
+            attachments: value.attachments,
+            author,
+            call: value.call,
+            channel_id: value.channel_id,
+            content: value.content,
+            edited_timestamp: value.edited_timestamp,
+            embeds: value.embeds,
+            flags: value.flags,
+            id: value.id,
+            mention_everyone: value.mention_everyone,
+            mention_roles: value.mention_roles,
+            mentions,
+            message_reference: value.message_reference,
+            message_snapshots: value.message_snapshots,
+            nonce: value.nonce,
+            pinned: value.pinned,
+            reactions: value.reactions,
+            stickers: value.stickers,
+            timestamp: value.timestamp,
+            tts: value.tts,
+            r#type: value.r#type,
+            webhook_id: value.webhook_id,
         }
     }
 }
