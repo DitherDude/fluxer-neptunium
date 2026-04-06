@@ -78,7 +78,7 @@ pub struct Guild {
     pub default_message_notifications: DefaultMessageNotifications,
     pub disabled_operations: GuildOperations,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub message_history_cutoff: Timestamp<Iso8601>,
+    pub message_history_cutoff: Option<Timestamp<Iso8601>>,
     /// The current user permissions in this guild.
     #[serde(skip_serializing_if = "Option::is_none", rename = "permissions")]
     pub current_user_permissions: Permissions,
