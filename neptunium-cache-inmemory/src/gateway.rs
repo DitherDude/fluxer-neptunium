@@ -189,7 +189,6 @@ impl CachedDispatchEvent {
             DispatchEvent::CallCreate(payload) => CachedDispatchEvent::CallCreate(payload),
             DispatchEvent::CallUpdate(payload) => CachedDispatchEvent::CallUpdate(payload),
             DispatchEvent::CallDelete(payload) => CachedDispatchEvent::CallDelete(payload),
-            #[cfg(feature = "user_api")]
             DispatchEvent::PassiveUpdates(payload) => CachedDispatchEvent::PassiveUpdates(payload),
         }
     }
@@ -268,6 +267,5 @@ pub enum CachedDispatchEvent {
     CallUpdate(CallUpdate),
     /// Dispatched to all recipients when the call terminates (all participants leave or timeout).
     CallDelete(CallDelete),
-    #[cfg(feature = "user_api")]
     PassiveUpdates(neptunium_model::gateway::payload::incoming::PassiveUpdates),
 }

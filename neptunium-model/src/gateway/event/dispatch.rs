@@ -99,7 +99,6 @@ pub enum DispatchEvent {
     /// Dispatched to all recipients when the call terminates (all participants leave or timeout).
     CallDelete(CallDelete),
     // Source: https://github.com/fluxerapp/fluxer/blob/refactor/fluxer_app/src/stores/gateway/handlers/guild/PassiveUpdates.tsx#L39
-    #[cfg(feature = "user_api")]
     PassiveUpdates(crate::gateway::payload::incoming::PassiveUpdates),
 }
 
