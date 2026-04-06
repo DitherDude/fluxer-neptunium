@@ -208,6 +208,51 @@ impl CachedMessage {
             referenced_message,
         }
     }
+
+    pub async fn into_message(self) -> Message {
+        let author = self.author.read().await.clone();
+        let mentions = if let Some(cached_mentions) = self.mentions {
+            let mut mentions = Vec::with_capacity(cached_mentions.len());
+            for mention in cached_mentions {
+                mentions.push(mention.read().await.clone());
+            }
+            Some(mentions)
+        } else {
+            None
+        };
+        let referenced_message = if let Some(referenced_message) = self.referenced_message {
+            Some(referenced_message.into_message_base().await)
+        } else {
+            None
+        };
+        Message {
+            base: MessageBase {
+                attachments: self.attachments,
+                author,
+                call: self.call,
+                channel_id: self.channel_id,
+                content: self.content,
+                edited_timestamp: self.edited_timestamp,
+                embeds: self.embeds,
+                flags: self.flags,
+                id: self.id,
+                mention_everyone: self.mention_everyone,
+                mention_roles: self.mention_roles,
+                mentions,
+                message_reference: self.message_reference,
+                message_snapshots: self.message_snapshots,
+                nonce: self.nonce,
+                pinned: self.pinned,
+                reactions: self.reactions,
+                stickers: self.stickers,
+                timestamp: self.timestamp,
+                tts: self.tts,
+                r#type: self.r#type,
+                webhook_id: self.webhook_id,
+            },
+            referenced_message,
+        }
+    }
 }
 
 pub struct CachedMessageBase {
@@ -264,6 +309,43 @@ impl CachedMessageBase {
             tts: value.tts,
             r#type: value.r#type,
             webhook_id: value.webhook_id,
+        }
+    }
+
+    pub async fn into_message_base(self) -> MessageBase {
+        let author = self.author.read().await.clone();
+        let mentions = if let Some(cached_mentions) = self.mentions {
+            let mut mentions = Vec::with_capacity(cached_mentions.len());
+            for mention in cached_mentions {
+                mentions.push(mention.read().await.clone());
+            }
+            Some(mentions)
+        } else {
+            None
+        };
+        MessageBase {
+            attachments: self.attachments,
+            author,
+            call: self.call,
+            channel_id: self.channel_id,
+            content: self.content,
+            edited_timestamp: self.edited_timestamp,
+            embeds: self.embeds,
+            flags: self.flags,
+            id: self.id,
+            mention_everyone: self.mention_everyone,
+            mention_roles: self.mention_roles,
+            mentions,
+            message_reference: self.message_reference,
+            message_snapshots: self.message_snapshots,
+            nonce: self.nonce,
+            pinned: self.pinned,
+            reactions: self.reactions,
+            stickers: self.stickers,
+            timestamp: self.timestamp,
+            tts: self.tts,
+            r#type: self.r#type,
+            webhook_id: self.webhook_id,
         }
     }
 }

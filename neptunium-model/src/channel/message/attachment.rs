@@ -45,44 +45,44 @@ impl<'de> Deserialize<'de> for MessageAttachmentFlags {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct MessageAttachment {
     #[serde(skip_serializing_if = "Option::is_none")]
-    content_hash: Option<String>,
+    pub content_hash: Option<String>,
     /// The MIME type of the attachment.
     #[serde(skip_serializing_if = "Option::is_none")]
-    content_type: Option<String>,
+    pub content_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    duration: Option<Duration<Seconds>>,
+    pub duration: Option<Duration<Seconds>>,
     /// Whether the attachment URL has expired.
     #[serde(skip_serializing_if = "Option::is_none")]
-    expired: Option<bool>,
+    pub expired: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    expires_at: Option<Timestamp<Iso8601>>,
+    pub expires_at: Option<Timestamp<Iso8601>>,
     /// The name of the attached file.
-    filename: String,
-    flags: MessageAttachmentFlags,
+    pub filename: String,
+    pub flags: MessageAttachmentFlags,
     /// The height of the attachment in pixels (for images/videos).
     #[serde(skip_serializing_if = "Option::is_none")]
-    height: Option<u32>,
-    id: Id<AttachmentMarker>,
+    pub height: Option<u32>,
+    pub id: Id<AttachmentMarker>,
     #[serde(default)]
-    nsfw: bool,
+    pub nsfw: bool,
     /// The base64 encoded placeholder image for lazy loading.
     #[serde(skip_serializing_if = "Option::is_none")]
-    placeholder: Option<String>,
+    pub placeholder: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    proxy_url: Option<String>,
+    pub proxy_url: Option<String>,
     // Documented as "int32" in the documentation but I want to be safe and use u64 instead.
     /// The size of the attachment in bytes.
-    size: u64,
+    pub size: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    title: Option<String>,
+    pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    url: Option<String>,
+    pub url: Option<String>,
     /// The base64 encoded audio waveform data.
     #[serde(skip_serializing_if = "Option::is_none")]
-    waveform: Option<String>,
+    pub waveform: Option<String>,
     /// The width of the attachment in pixels (for images/videos).
     #[serde(skip_serializing_if = "Option::is_none")]
-    width: Option<u32>,
+    pub width: Option<u32>,
 }

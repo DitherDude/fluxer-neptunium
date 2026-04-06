@@ -25,9 +25,9 @@ use neptunium_http::{
         Endpoint, ExecuteEndpointRequestError,
         channel::{
             AddUserToGroupDm, BulkDeleteMessages, CreateMessage, CreatePrivateChannel,
-            DeleteChannel, DeletePermissionOverwrite, GetChannel, ListChannelMessages,
-            ListPrivateChannels, RemoveUserFromGroupDm, SetPermissionOverwrite, UpdateCallRegion,
-            UpdateChannelSettings,
+            DeleteChannel, DeleteMessage, DeleteMessageAttachment, DeletePermissionOverwrite,
+            EditMessage, FetchMessage, GetChannel, ListChannelMessages, ListPrivateChannels,
+            RemoveUserFromGroupDm, SetPermissionOverwrite, UpdateCallRegion, UpdateChannelSettings,
         },
         guild::{
             CreateGuildChannel, CreateGuildRole, DeleteGuildRole, GetGuildInformation, LeaveGuild,
@@ -817,6 +817,78 @@ impl CachableEndpoint for LeaveGuild {
         let guild_id = self.guild_id;
         client.execute(self).await?;
         cache.guilds.invalidate(&guild_id);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for DeleteMessage {
+    type Response = ();
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let message_id = self.message_id;
+        client.execute(self).await?;
+        cache.messages.invalidate(&message_id);
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for EditMessage {
+    type Response = Cached<CachedMessage>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let message = client.execute(self).await?;
+        Ok(CachedMessage::from_message(message, cache)
+            .await
+            .insert_and_return(cache)
+            .await)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for FetchMessage {
+    type Response = Cached<CachedMessage>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        if let Some(cached_message) = cache.messages.get(&self.message_id) {
+            return Ok(cached_message);
+        }
+        let message = client.execute(self).await?;
+        Ok(CachedMessage::from_message(message, cache)
+            .await
+            .insert_and_return(cache)
+            .await)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for DeleteMessageAttachment {
+    type Response = ();
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let attachment_id = self.attachment_id;
+        let message_id = self.message_id;
+        client.execute(self).await?;
+        if let Some(cached_message) = cache.messages.get(&message_id) {
+            let mut guard = cached_message.write().await;
+            let Some(attachments) = &mut guard.attachments else {
+                return Ok(());
+            };
+            attachments.retain(|attachment| attachment.id != attachment_id);
+        }
         Ok(())
     }
 }

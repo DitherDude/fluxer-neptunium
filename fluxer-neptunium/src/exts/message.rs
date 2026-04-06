@@ -1,6 +1,7 @@
 // TODO: Add some of the saved_media API here.
 
 use async_trait::async_trait;
+use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedMessage};
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::channel::ScheduledMessageResponse;
 #[cfg(feature = "user_api")]
@@ -32,7 +33,7 @@ pub trait MessageExt {
         &self,
         ctx: &Context,
         message_body: impl Into<CreateMessageBody> + Send,
-    ) -> Result<Message, Error>;
+    ) -> Result<Cached<CachedMessage>, Error>;
 
     async fn add_reaction(
         &self,
@@ -65,10 +66,14 @@ pub trait MessageExt {
     async fn delete(&self, ctx: &Context) -> Result<(), Error>;
 
     /// Edit this message.
-    async fn edit(&self, ctx: &Context, updates: EditMessageBody) -> Result<Message, Error>;
+    async fn edit(
+        &self,
+        ctx: &Context,
+        updates: EditMessageBody,
+    ) -> Result<Cached<CachedMessage>, Error>;
 
     /// Re-fetches this message and returns the result.
-    async fn fetch(&self, ctx: &Context) -> Result<Message, Error>;
+    async fn fetch(&self, ctx: &Context) -> Result<Cached<CachedMessage>, Error>;
 
     /// Mark the message as read.
     #[cfg(feature = "user_api")]
@@ -111,7 +116,7 @@ impl MessageExt for Message {
         &self,
         ctx: &Context,
         message_body: impl Into<CreateMessageBody> + Send,
-    ) -> Result<Message, crate::client::error::Error> {
+    ) -> Result<Cached<CachedMessage>, crate::client::error::Error> {
         let mut message_body = message_body.into();
         message_body.message_reference = Some(
             MessageReference::builder()
@@ -119,14 +124,11 @@ impl MessageExt for Message {
                 .message_id(self.id)
                 .build(),
         );
-        Ok(ctx
-            .get_http_client()
-            .execute(
-                CreateMessage::builder()
-                    .channel_id(self.channel_id)
-                    .message(message_body)
-                    .build(),
-            )
+        Ok(CreateMessage::builder()
+            .channel_id(self.channel_id)
+            .message(message_body)
+            .build()
+            .execute_cached(ctx.get_http_client(), &ctx.cache)
             .await?)
     }
 
@@ -213,40 +215,35 @@ impl MessageExt for Message {
     }
 
     async fn delete(&self, ctx: &Context) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(
-                DeleteMessage::builder()
-                    .channel_id(self.channel_id)
-                    .message_id(self.id)
-                    .build(),
-            )
-            .await?)
+        Ok(DeleteMessage {
+            channel_id: self.channel_id,
+            message_id: self.id,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
-    async fn edit(&self, ctx: &Context, updates: EditMessageBody) -> Result<Message, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(
-                EditMessage::builder()
-                    .channel_id(self.channel_id)
-                    .message_id(self.id)
-                    .body(updates)
-                    .build(),
-            )
-            .await?)
+    async fn edit(
+        &self,
+        ctx: &Context,
+        updates: EditMessageBody,
+    ) -> Result<Cached<CachedMessage>, Error> {
+        Ok(EditMessage {
+            channel_id: self.channel_id,
+            message_id: self.id,
+            body: updates,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
-    async fn fetch(&self, ctx: &Context) -> Result<Message, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(
-                FetchMessage::builder()
-                    .message_id(self.id)
-                    .channel_id(self.channel_id)
-                    .build(),
-            )
-            .await?)
+    async fn fetch(&self, ctx: &Context) -> Result<Cached<CachedMessage>, Error> {
+        Ok(FetchMessage {
+            channel_id: self.channel_id,
+            message_id: self.id,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     #[cfg(feature = "user_api")]
@@ -289,14 +286,13 @@ impl MessageExt for Message {
         ctx: &Context,
         attachment_id: Id<AttachmentMarker>,
     ) -> Result<(), Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(DeleteMessageAttachment {
-                channel_id: self.channel_id,
-                message_id: self.id,
-                attachment_id,
-            })
-            .await?)
+        Ok(DeleteMessageAttachment {
+            channel_id: self.channel_id,
+            message_id: self.id,
+            attachment_id,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn pin(&self, ctx: &Context) -> Result<(), Error> {
@@ -356,9 +352,15 @@ impl MessageExt for Message {
     }
 }
 
+// TODO: impl MessageExt for CachedMessage
+
 #[async_trait]
 pub trait MessageIdExt {
-    async fn fetch(&self, ctx: &Context, channel_id: Id<ChannelMarker>) -> Result<Message, Error>;
+    async fn fetch(
+        &self,
+        ctx: &Context,
+        channel_id: Id<ChannelMarker>,
+    ) -> Result<Cached<CachedMessage>, Error>;
     /// Saves a message for the current user. Saved messages can be accessed
     /// later from the saved messages list. Messages are saved privately.
     #[cfg(feature = "user_api")]
@@ -371,14 +373,17 @@ pub trait MessageIdExt {
 
 #[async_trait]
 impl MessageIdExt for Id<MessageMarker> {
-    async fn fetch(&self, ctx: &Context, channel_id: Id<ChannelMarker>) -> Result<Message, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(FetchMessage {
-                channel_id,
-                message_id: *self,
-            })
-            .await?)
+    async fn fetch(
+        &self,
+        ctx: &Context,
+        channel_id: Id<ChannelMarker>,
+    ) -> Result<Cached<CachedMessage>, Error> {
+        Ok(FetchMessage {
+            channel_id,
+            message_id: *self,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     #[cfg(feature = "user_api")]
