@@ -3,9 +3,12 @@
 use std::{env, sync::Arc};
 
 use fluxer_neptunium::{
-    cached_payload::CachedReady, http::client::TokenType,
-    model::gateway::payload::incoming::PassiveUpdates, prelude::*,
+    cached_payload::{CachedMessageCreate, CachedReady},
+    http::client::TokenType,
+    model::gateway::payload::incoming::PassiveUpdates,
+    prelude::*,
 };
+use tracing_subscriber::filter::LevelFilter;
 
 struct Handler;
 
@@ -17,12 +20,31 @@ impl EventHandler for Handler {
         Ok(())
     }
 
+    async fn on_message_create(
+        &self,
+        ctx: Context,
+        event: Arc<CachedMessageCreate>,
+    ) -> Result<(), EventError> {
+        let message = event.message.read().await;
+        let author = message.author.read().await;
+        println!(
+            "{}#{}: {}",
+            author.username, author.discriminator, message.content
+        );
+        let current_user_id = ctx.get_own_profile().await?.read().await.id;
+        if author.id == current_user_id && message.content == "u?ping" {
+            message.reply(&ctx, "Pong!").await?;
+        }
+        Ok(())
+    }
+
+    // PASSIVE_UPDATES is a client-only gateway dispatch event
     async fn on_passive_updates(
         &self,
         _ctx: Context,
-        data: Arc<PassiveUpdates>,
+        _data: Arc<PassiveUpdates>,
     ) -> Result<(), EventError> {
-        println!("Passive updates received: {:?}", data);
+        // println!("Passive updates received: {:?}", data);
 
         Ok(())
     }
@@ -30,6 +52,9 @@ impl EventHandler for Handler {
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_max_level(LevelFilter::DEBUG)
+        .init();
     let mut client = Client::new_with_config(
         env::var("FLUXER_USER_TOKEN").unwrap(),
         ClientConfig::builder().token_type(TokenType::User).build(),
