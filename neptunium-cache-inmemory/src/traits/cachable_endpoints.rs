@@ -28,12 +28,14 @@ use neptunium_http::{
             ListPrivateChannels, RemoveUserFromGroupDm, SetPermissionOverwrite, UpdateCallRegion,
             UpdateChannelSettings,
         },
+        invites::{CreateChannelInvite, ListChannelInvites},
         users::{GetCurrentUserProfile, GetUserById, GetUserProfile},
     },
 };
 use neptunium_model::{
     channel::{PermissionOverwrite, message::Message},
     guild::permissions::Permissions,
+    invites::InviteWithMetadata,
 };
 use tokio::sync::RwLock;
 
@@ -484,5 +486,34 @@ impl CachableEndpoint for UpdateUserSettings {
                 .get_or_init(async || Arc::new(RwLock::new(settings)))
                 .await,
         ))
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for CreateChannelInvite {
+    type Response = Cached<InviteWithMetadata>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        Ok(client.execute(self).await?.insert_and_return(cache).await)
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for ListChannelInvites {
+    type Response = Vec<Cached<InviteWithMetadata>>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let invites = client.execute(self).await?;
+        let mut cached_invites = Vec::with_capacity(invites.len());
+        for invite in invites {
+            cached_invites.push(invite.insert_and_return(cache).await);
+        }
+        Ok(cached_invites)
     }
 }

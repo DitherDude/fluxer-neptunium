@@ -13,6 +13,7 @@ use neptunium_model::{
         Id,
         marker::{ChannelMarker, GuildMarker, MessageMarker, UserMarker},
     },
+    invites::InviteWithMetadata,
     user::PartialUser,
 };
 use tokio::sync::OnceCell;
@@ -34,6 +35,7 @@ pub struct Cache {
     pub current_user: OnceCell<Cached<UserPrivateResponse>>,
     #[cfg(feature = "user_api")]
     pub current_user_settings: OnceCell<Cached<UserSettings>>,
+    pub invites: MokaCache<String, Cached<InviteWithMetadata>>,
 }
 
 #[derive(Builder, Copy, Clone, Debug)]
@@ -46,6 +48,8 @@ pub struct CacheConfig {
     pub channels: u64,
     #[builder(default = 1024)]
     pub messages: u64,
+    #[builder(default = 256)]
+    pub invites: u64,
 }
 
 impl Default for CacheConfig {
@@ -65,6 +69,7 @@ impl Cache {
             current_user: OnceCell::new(),
             #[cfg(feature = "user_api")]
             current_user_settings: OnceCell::new(),
+            invites: MokaCache::new(config.invites),
         }
     }
 }

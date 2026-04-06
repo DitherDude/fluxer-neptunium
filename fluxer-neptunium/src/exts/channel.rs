@@ -116,8 +116,8 @@ pub trait ChannelExt {
         &self,
         ctx: &Context,
         options: CreateChannelInviteOptions,
-    ) -> Result<InviteWithMetadata, Error>;
-    async fn list_invites(&self, ctx: &Context) -> Result<Vec<InviteWithMetadata>, Error>;
+    ) -> Result<Cached<InviteWithMetadata>, Error>;
+    async fn list_invites(&self, ctx: &Context) -> Result<Vec<Cached<InviteWithMetadata>>, Error>;
     async fn list_webhooks(&self, ctx: &Context) -> Result<Vec<Webhook>, Error>;
     /// Create a webhook in this channel, with the given name and optionally the avatar image as a base64-encoded data URI.
     async fn create_webhook(
@@ -126,8 +126,10 @@ pub trait ChannelExt {
         name: String,
         avatar: Option<String>,
     ) -> Result<Webhook, Error>;
-    async fn pin_channel(&self, ctx: &Context) -> Result<(), Error>;
-    async fn unpin_channel(&self, ctx: &Context) -> Result<(), Error>;
+    /// Pin this channel for the current user if it is a DM channel.
+    async fn pin(&self, ctx: &Context) -> Result<(), Error>;
+    /// Unpin this channel for the current user if it is a DM channel.
+    async fn unpin(&self, ctx: &Context) -> Result<(), Error>;
 }
 
 #[async_trait]
@@ -338,7 +340,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         .execute_cached(ctx.get_http_client(), &ctx.cache)
         .await?)
     }
-    // TODO: Caching for all below functions:
+
     async fn list_rtc_regions(
         &self,
         ctx: &Context,
@@ -364,23 +366,21 @@ impl<T: ChannelTrait> ChannelExt for T {
         &self,
         ctx: &Context,
         options: CreateChannelInviteOptions,
-    ) -> Result<InviteWithMetadata, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(CreateChannelInvite {
-                channel_id: self.get_channel_id(),
-                options,
-            })
-            .await?)
+    ) -> Result<Cached<InviteWithMetadata>, Error> {
+        Ok(CreateChannelInvite {
+            channel_id: self.get_channel_id(),
+            options,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
-    async fn list_invites(&self, ctx: &Context) -> Result<Vec<InviteWithMetadata>, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(ListChannelInvites {
-                channel_id: self.get_channel_id(),
-            })
-            .await?)
+    async fn list_invites(&self, ctx: &Context) -> Result<Vec<Cached<InviteWithMetadata>>, Error> {
+        Ok(ListChannelInvites {
+            channel_id: self.get_channel_id(),
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn list_webhooks(&self, ctx: &Context) -> Result<Vec<Webhook>, Error> {
@@ -408,7 +408,7 @@ impl<T: ChannelTrait> ChannelExt for T {
             .await?)
     }
 
-    async fn pin_channel(&self, ctx: &Context) -> Result<(), Error> {
+    async fn pin(&self, ctx: &Context) -> Result<(), Error> {
         ctx.get_http_client()
             .execute(PinDirectMessageChannel {
                 channel_id: self.get_channel_id(),
@@ -417,7 +417,7 @@ impl<T: ChannelTrait> ChannelExt for T {
         Ok(())
     }
 
-    async fn unpin_channel(&self, ctx: &Context) -> Result<(), Error> {
+    async fn unpin(&self, ctx: &Context) -> Result<(), Error> {
         ctx.get_http_client()
             .execute(UnpinDirectMessageChannel {
                 channel_id: self.get_channel_id(),

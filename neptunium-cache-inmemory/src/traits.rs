@@ -6,7 +6,11 @@ use neptunium_http::{
     client::HttpClient,
     endpoints::{Endpoint, ExecuteEndpointRequestError},
 };
-use neptunium_model::{channel::message::Message, gateway::payload::incoming::UserPrivateResponse};
+use neptunium_model::{
+    channel::message::Message,
+    gateway::payload::incoming::UserPrivateResponse,
+    invites::{GroupDmInvite, GuildInvite, InviteWithMetadata, PackInvite},
+};
 use tokio::sync::RwLock;
 
 pub mod cachable_endpoints;
@@ -77,5 +81,26 @@ impl CacheValue for UserPrivateResponse {
                     .await,
             )
         }
+    }
+}
+
+impl CacheValue for InviteWithMetadata {
+    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+        let code = match &self {
+            Self::EmojiPack(PackInvite { code, .. }, _)
+            | Self::GroupDm(GroupDmInvite { code, .. }, _)
+            | Self::Guild(GuildInvite { code, .. }, _)
+            | Self::StickerPack(PackInvite { code, .. }, _) => code.clone(),
+        };
+        if let Some(cached_invite) = cache.invites.get(&code) {
+            {
+                let mut guard = cached_invite.write().await;
+                *guard = self;
+            }
+            return cached_invite;
+        }
+        let cached_self = Arc::new(RwLock::new(self));
+        cache.invites.insert(code, Arc::clone(&cached_self));
+        cached_self
     }
 }
