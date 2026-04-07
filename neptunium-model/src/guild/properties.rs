@@ -217,4 +217,6 @@ pub enum GuildFeatureFlag {
     MtMessageScheduling,
     /// Guild has managed expression packs.
     MtExpressionPacks,
+    /// A raid has been detected in this guild.
+    RaidDetected,
 }
