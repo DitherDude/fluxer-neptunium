@@ -47,6 +47,7 @@ const fn unwrap_or(option: Option<&'static str>, default: &'static str) -> &'sta
     }
 }
 
+pub use neptunium_cache_inmemory as cache;
 pub use neptunium_cache_inmemory::gateway::cached_payload;
 
 pub mod prelude {
@@ -56,6 +57,7 @@ pub mod prelude {
         exts::*,
     };
     pub use async_trait::async_trait;
+    pub use neptunium_cache_inmemory::Cached;
     pub use neptunium_gateway::shard::config::{ShardConfig, ShardConfigBuilder};
     pub use neptunium_model::gateway::intents::GatewayEventFlags;
 }
