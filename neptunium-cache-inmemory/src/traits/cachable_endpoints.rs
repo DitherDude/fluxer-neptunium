@@ -48,7 +48,6 @@ use neptunium_model::{
     },
     invites::InviteWithMetadata,
 };
-use tokio::sync::RwLock;
 
 use crate::{
     CachableEndpoint, Cache, Cached, CachedChannel, CachedMessage,
@@ -68,8 +67,8 @@ impl CachableEndpoint for GetUserById {
         }
         let res = client.execute(self).await?;
         let user_id = res.id;
-        let user = Arc::new(RwLock::new(res));
-        cache.users.insert(user_id, Arc::clone(&user));
+        let user = Cached::new(res);
+        cache.users.insert(user_id, user.clone());
         Ok(user)
     }
 }
@@ -88,11 +87,11 @@ impl CachableEndpoint for GetUserProfile {
             let Some(cached_profile) = &cached_profile else {
                 break 'blk false;
             };
-            let guard = cached_profile.read().await;
-            if self.params.with_mutual_friends && guard.mutual_friends.is_none() {
+            let profile = cached_profile.load();
+            if self.params.with_mutual_friends && profile.mutual_friends.is_none() {
                 false
             } else {
-                !(self.params.with_mutual_guilds && guard.mutual_guilds.is_none())
+                !(self.params.with_mutual_guilds && profile.mutual_guilds.is_none())
             }
         };
         if return_cached_profile {
@@ -103,31 +102,27 @@ impl CachableEndpoint for GetUserProfile {
         let mut res = client.execute(self).await?;
         if let Some(cached_profile) = cached_profile {
             {
-                let guard = cached_profile.read().await;
+                let profile = cached_profile.load();
                 if res.mutual_friends.is_none()
-                    && let Some(mutual_friends) = &guard.mutual_friends
+                    && let Some(mutual_friends) = &profile.mutual_friends
                 {
                     let mutual_friends = mutual_friends.clone();
                     res.mutual_friends = Some(mutual_friends);
                 }
                 if res.mutual_guilds.is_none()
-                    && let Some(mutual_guilds) = &guard.mutual_guilds
+                    && let Some(mutual_guilds) = &profile.mutual_guilds
                 {
                     let mutual_guilds = mutual_guilds.clone();
                     res.mutual_guilds = Some(mutual_guilds);
                 }
             }
-            {
-                let mut guard = cached_profile.write().await;
-                *guard = res;
-            }
-            Ok(cached_profile)
+            Ok(cached_profile.store_and_return(res))
         } else {
             let id = res.user.id;
             let guild_id = self.params.guild_id;
-            let arc = Arc::new(RwLock::new(res));
-            cache.user_profiles.insert((id, guild_id), Arc::clone(&arc));
-            Ok(arc)
+            let cached = Cached::new(res);
+            cache.user_profiles.insert((id, guild_id), cached.clone());
+            Ok(cached)
         }
     }
 }
@@ -159,10 +154,7 @@ impl CachableEndpoint for GetChannel {
             return Ok(cached_channel);
         }
         let res = client.execute(self).await?;
-        Ok(CachedChannel::from_channel(res, cache)
-            .await
-            .insert_and_return(cache)
-            .await)
+        Ok(CachedChannel::from_channel(res, cache).insert_and_return(cache))
     }
 }
 
@@ -175,10 +167,7 @@ impl CachableEndpoint for UpdateChannelSettings {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(CachedChannel::from_channel(res, cache)
-            .await
-            .insert_and_return(cache)
-            .await)
+        Ok(CachedChannel::from_channel(res, cache).insert_and_return(cache))
     }
 }
 
@@ -194,8 +183,7 @@ impl CachableEndpoint for UpdateCallRegion {
         let region_clone = self.region.clone();
         client.execute(self).await?;
         if let Some(cached_channel) = cache.channels.get(&channel_id) {
-            let mut guard = cached_channel.write().await;
-            guard.rtc_region = Some(region_clone);
+            cached_channel.modify(move |channel| channel.rtc_region = Some(region_clone));
         }
         Ok(())
     }
@@ -229,12 +217,8 @@ impl CachableEndpoint for ListChannelMessages {
         let res = client.execute(self).await?;
         let mut cached_messages = Vec::with_capacity(res.len());
         for message in res {
-            cached_messages.push(
-                CachedMessage::from_message(message, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
-            );
+            cached_messages
+                .push(CachedMessage::from_message(message, cache).insert_and_return(cache));
         }
         Ok(cached_messages)
     }
@@ -249,7 +233,7 @@ impl CachableEndpoint for GetCurrentUserProfile {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(res.insert_and_return(cache).await)
+        Ok(res.insert_and_return(cache))
     }
 }
 
@@ -263,7 +247,7 @@ impl CachableEndpoint for UpdateCurrentUserProfile {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(res.insert_and_return(cache).await)
+        Ok(res.insert_and_return(cache))
     }
 }
 
@@ -278,12 +262,8 @@ impl CachableEndpoint for ListPrivateChannels {
         let res = client.execute(self).await?;
         let mut cached_channels = Vec::with_capacity(res.len());
         for channel in res {
-            cached_channels.push(
-                CachedChannel::from_channel(channel, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
-            );
+            cached_channels
+                .push(CachedChannel::from_channel(channel, cache).insert_and_return(cache));
         }
         Ok(cached_channels)
     }
@@ -299,9 +279,7 @@ impl CachableEndpoint for CreatePrivateChannel {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         Ok(
             CachedChannel::from_channel(client.execute(self).await?, cache)
-                .await
-                .insert_and_return(cache)
-                .await,
+                .insert_and_return(cache),
         )
     }
 }
@@ -318,12 +296,8 @@ impl CachableEndpoint for ListCurrentUserMentions {
         let res = client.execute(self).await?;
         let mut cached_messages = Vec::with_capacity(res.len());
         for message in res {
-            cached_messages.push(
-                CachedMessage::from_message(message, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
-            );
+            cached_messages
+                .push(CachedMessage::from_message(message, cache).insert_and_return(cache));
         }
         Ok(cached_messages)
     }
@@ -343,10 +317,7 @@ impl CachableEndpoint for PreloadMessagesForChannels {
         for (id, message) in res {
             cached_messages.insert(
                 id,
-                CachedMessage::from_message(message, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
+                CachedMessage::from_message(message, cache).insert_and_return(cache),
             );
         }
         Ok(cached_messages)
@@ -363,9 +334,7 @@ impl CachableEndpoint for CreateMessage {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         Ok(
             CachedMessage::from_message(client.execute(self).await?, cache)
-                .await
-                .insert_and_return(cache)
-                .await,
+                .insert_and_return(cache),
         )
     }
 }
@@ -380,26 +349,27 @@ impl CachableEndpoint for SetPermissionOverwrite {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         client.execute(self).await?;
         if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
-            let mut guard = existing_channel.write().await;
-            if let Some(existing_overwrites) = &mut guard.permission_overwrites {
-                for existing_overwrite in existing_overwrites {
-                    if existing_overwrite.id == self.overwrite.id {
-                        // https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/api/src/channel/controllers/ChannelController.tsx#L272
-                        // Permission overwrites are set to 0 (empty) if they were not provided in the request.
-                        existing_overwrite.allow =
-                            self.overwrite.allow.unwrap_or(Permissions::empty());
-                        existing_overwrite.deny =
-                            self.overwrite.deny.unwrap_or(Permissions::empty());
+            existing_channel.modify(|channel| {
+                if let Some(existing_overwrites) = &mut channel.permission_overwrites {
+                    for existing_overwrite in existing_overwrites {
+                        if existing_overwrite.id == self.overwrite.id {
+                            // https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/api/src/channel/controllers/ChannelController.tsx#L272
+                            // Permission overwrites are set to 0 (empty) if they were not provided in the request.
+                            existing_overwrite.allow =
+                                self.overwrite.allow.unwrap_or(Permissions::empty());
+                            existing_overwrite.deny =
+                                self.overwrite.deny.unwrap_or(Permissions::empty());
+                        }
                     }
+                } else {
+                    channel.permission_overwrites = Some(vec![PermissionOverwrite {
+                        allow: self.overwrite.allow.unwrap_or(Permissions::empty()),
+                        deny: self.overwrite.deny.unwrap_or(Permissions::empty()),
+                        id: self.overwrite.id,
+                        r#type: self.overwrite.r#type,
+                    }]);
                 }
-            } else {
-                guard.permission_overwrites = Some(vec![PermissionOverwrite {
-                    allow: self.overwrite.allow.unwrap_or(Permissions::empty()),
-                    deny: self.overwrite.deny.unwrap_or(Permissions::empty()),
-                    id: self.overwrite.id,
-                    r#type: self.overwrite.r#type,
-                }]);
-            }
+            });
         }
         Ok(())
     }
@@ -415,10 +385,11 @@ impl CachableEndpoint for DeletePermissionOverwrite {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         client.execute(self).await?;
         if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
-            let mut guard = existing_channel.write().await;
-            if let Some(existing_overwrites) = &mut guard.permission_overwrites {
-                existing_overwrites.retain(|overwrite| overwrite.id != self.overwrite_id);
-            }
+            existing_channel.modify(|channel| {
+                if let Some(existing_overwrites) = &mut channel.permission_overwrites {
+                    existing_overwrites.retain(|overwrite| overwrite.id != self.overwrite_id);
+                }
+            });
         }
         Ok(())
     }
@@ -438,13 +409,13 @@ impl CachableEndpoint for AddUserToGroupDm {
             return Ok(());
         };
         if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
-            let mut guard = existing_channel.write().await;
-            let Some(recipients) = &mut guard.recipients else {
-                drop(guard);
-                tracing::warn!(%self.channel_id, "Cached group DM channel does not have recipients.");
-                return Ok(());
-            };
-            recipients.push(cached_user);
+            existing_channel.modify(|channel| {
+                let Some(recipients) = &mut channel.recipients else {
+                    tracing::warn!(%self.channel_id, "Cached group DM channel does not have recipients.");
+                    return;
+                };
+                recipients.push(cached_user);
+            });
         }
         Ok(())
     }
@@ -460,26 +431,26 @@ impl CachableEndpoint for RemoveUserFromGroupDm {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         client.execute(self).await?;
         if let Some(existing_channel) = cache.channels.get(&self.channel_id) {
-            let mut guard = existing_channel.write().await;
-            let Some(recipients) = &mut guard.recipients else {
-                drop(guard);
-                tracing::warn!(%self.channel_id, "Cached group DM channel does not have recipients.");
-                return Ok(());
-            };
-            let mut index = None;
-            for (i, recipient) in recipients.iter().enumerate() {
-                let guard = recipient.read().await;
-                if guard.id == self.user_id {
-                    index = Some(i);
-                    break;
+            let _ = existing_channel.try_modify(|channel| {
+                let Some(recipients) = &mut channel.recipients else {
+                    tracing::warn!(%self.channel_id, "Cached group DM channel does not have recipients.");
+                    return Err(());
+                };
+                let mut index = None;
+                for (i, recipient) in recipients.iter().enumerate() {
+                    let recipient = recipient.load();
+                    if recipient.id == self.user_id {
+                        index = Some(i);
+                        break;
+                    }
                 }
-            }
-            let Some(index) = index else {
-                drop(guard);
-                tracing::trace!("Group DM recipient was not cached.");
-                return Ok(());
-            };
-            recipients.remove(index);
+                let Some(index) = index else {
+                    tracing::trace!("Group DM recipient was not cached.");
+                    return Err(());
+                };
+                recipients.remove(index);
+                Ok(())
+            });
         }
         Ok(())
     }
@@ -495,19 +466,13 @@ impl CachableEndpoint for GetUserSettings {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         if let Some(cached_settings) = cache.current_user_settings.get() {
-            return Ok(Arc::clone(cached_settings));
+            return Ok(cached_settings.clone());
         }
-        Ok(Arc::clone(
-            cache
-                .current_user_settings
-                .get_or_try_init(async || {
-                    client
-                        .execute(self)
-                        .await
-                        .map(|settings| Arc::new(RwLock::new(settings)))
-                })
-                .await?,
-        ))
+        let res = client.execute(self).await;
+        Ok(cache
+            .current_user_settings
+            .get_or_try_init(|| res.map(Cached::new))?
+            .clone())
     }
 }
 
@@ -522,19 +487,12 @@ impl CachableEndpoint for UpdateUserSettings {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let settings = client.execute(self).await?;
         if let Some(cached_settings) = cache.current_user_settings.get() {
-            let cached_settings = Arc::clone(cached_settings);
-            {
-                let mut guard = cached_settings.write().await;
-                *guard = settings;
-            }
-            return Ok(cached_settings);
+            return Ok(cached_settings.store_and_return(settings));
         }
-        Ok(Arc::clone(
-            cache
-                .current_user_settings
-                .get_or_init(async || Arc::new(RwLock::new(settings)))
-                .await,
-        ))
+        Ok(cache
+            .current_user_settings
+            .get_or_init(|| Cached::new(settings))
+            .clone())
     }
 }
 
@@ -546,7 +504,7 @@ impl CachableEndpoint for CreateChannelInvite {
         client: &Arc<HttpClient>,
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
-        Ok(client.execute(self).await?.insert_and_return(cache).await)
+        Ok(client.execute(self).await?.insert_and_return(cache))
     }
 }
 
@@ -590,7 +548,7 @@ impl CachableEndpoint for GetGuildInformation {
             return Ok(cached_guild);
         }
         let guild = client.execute(self).await?;
-        Ok(guild.insert_and_return(cache).await)
+        Ok(guild.insert_and_return(cache))
     }
 }
 
@@ -605,12 +563,8 @@ impl CachableEndpoint for ListGuildChannels {
         let channels = client.execute(self).await?;
         let mut cached_channels = Vec::with_capacity(channels.len());
         for channel in channels {
-            cached_channels.push(
-                CachedChannel::from_channel(channel, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
-            );
+            cached_channels
+                .push(CachedChannel::from_channel(channel, cache).insert_and_return(cache));
         }
         Ok(cached_channels)
     }
@@ -625,10 +579,7 @@ impl CachableEndpoint for CreateGuildChannel {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
-        Ok(CachedChannel::from_channel(res, cache)
-            .await
-            .insert_and_return(cache)
-            .await)
+        Ok(CachedChannel::from_channel(res, cache).insert_and_return(cache))
     }
 }
 
@@ -657,7 +608,7 @@ impl CachableEndpoint for ToggleDetachedBanner {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let guild = client.execute(self).await?;
-        Ok(guild.insert_and_return(cache).await)
+        Ok(guild.insert_and_return(cache))
     }
 }
 
@@ -684,7 +635,7 @@ impl CachableEndpoint for CreateGuildRole {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let role = client.execute(self).await?;
-        Ok(role.insert_and_return(cache).await)
+        Ok(role.insert_and_return(cache))
     }
 }
 
@@ -700,8 +651,7 @@ impl CachableEndpoint for UpdateGuildRolePositions {
         client.execute(self).await?;
         for UpdateGuildRolePositionsEntry { id, position } in entries {
             if let Some(cached_role) = cache.roles.get(&id) {
-                let mut guard = cached_role.write().await;
-                guard.position = position;
+                cached_role.modify(|role| role.position = position);
             }
         }
         Ok(())
@@ -724,8 +674,7 @@ impl CachableEndpoint for UpdateGuildRoleHoistPositions {
         } in entries
         {
             if let Some(cached_role) = cache.roles.get(&id) {
-                let mut guard = cached_role.write().await;
-                guard.hoist_position = Some(position);
+                cached_role.modify(|role| role.hoist_position = Some(position));
             }
         }
         Ok(())
@@ -756,7 +705,7 @@ impl CachableEndpoint for UpdateGuildRole {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let role = client.execute(self).await?;
-        Ok(role.insert_and_return(cache).await)
+        Ok(role.insert_and_return(cache))
     }
 }
 
@@ -769,7 +718,7 @@ impl CachableEndpoint for ToggleGuildTextChannelFlexibleNames {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let guild = client.execute(self).await?;
-        Ok(guild.insert_and_return(cache).await)
+        Ok(guild.insert_and_return(cache))
     }
 }
 
@@ -783,7 +732,7 @@ impl CachableEndpoint for TransferGuildOwnership {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let guild = client.execute(self).await?;
-        Ok(guild.insert_and_return(cache).await)
+        Ok(guild.insert_and_return(cache))
     }
 }
 
@@ -799,8 +748,7 @@ impl CachableEndpoint for UpdateGuildVanityUrl {
         let res = client.execute(self).await?;
         let code = res.code.clone();
         if let Some(cached_guild) = cache.guilds.get(&guild_id) {
-            let mut guard = cached_guild.write().await;
-            guard.vanity_url_code = Some(code);
+            cached_guild.modify(|guild| guild.vanity_url_code = Some(code));
         }
         Ok(res)
     }
@@ -845,10 +793,7 @@ impl CachableEndpoint for EditMessage {
         cache: &Arc<Cache>,
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let message = client.execute(self).await?;
-        Ok(CachedMessage::from_message(message, cache)
-            .await
-            .insert_and_return(cache)
-            .await)
+        Ok(CachedMessage::from_message(message, cache).insert_and_return(cache))
     }
 }
 
@@ -864,10 +809,7 @@ impl CachableEndpoint for FetchMessage {
             return Ok(cached_message);
         }
         let message = client.execute(self).await?;
-        Ok(CachedMessage::from_message(message, cache)
-            .await
-            .insert_and_return(cache)
-            .await)
+        Ok(CachedMessage::from_message(message, cache).insert_and_return(cache))
     }
 }
 
@@ -883,11 +825,13 @@ impl CachableEndpoint for DeleteMessageAttachment {
         let message_id = self.message_id;
         client.execute(self).await?;
         if let Some(cached_message) = cache.messages.get(&message_id) {
-            let mut guard = cached_message.write().await;
-            let Some(attachments) = &mut guard.attachments else {
-                return Ok(());
-            };
-            attachments.retain(|attachment| attachment.id != attachment_id);
+            let _ = cached_message.try_modify(|message| {
+                let Some(attachments) = &mut message.attachments else {
+                    return Err(());
+                };
+                attachments.retain(|attachment| attachment.id != attachment_id);
+                Ok(())
+            });
         }
         Ok(())
     }

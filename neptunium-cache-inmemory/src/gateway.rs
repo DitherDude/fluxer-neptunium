@@ -35,10 +35,10 @@ pub mod cached_payload;
 
 impl CachedDispatchEvent {
     #[expect(clippy::too_many_lines)]
-    pub async fn from_dispatch_event(event: DispatchEvent, cache: &Arc<Cache>) -> Self {
+    pub fn from_dispatch_event(event: DispatchEvent, cache: &Arc<Cache>) -> Self {
         match event {
             DispatchEvent::Ready(payload) => {
-                CachedDispatchEvent::Ready(CachedReady::from_noncached(payload, cache).await)
+                CachedDispatchEvent::Ready(CachedReady::from_noncached(payload, cache))
             }
             DispatchEvent::Resumed(()) => CachedDispatchEvent::Resumed(()),
             DispatchEvent::SessionsReplace(payload) => {
@@ -48,13 +48,13 @@ impl CachedDispatchEvent {
                 CachedDispatchEvent::GuildAuditLogEntryCreate(payload)
             }
             DispatchEvent::UserUpdate(payload) => {
-                CachedDispatchEvent::UserUpdate(payload.insert_and_return(cache).await)
+                CachedDispatchEvent::UserUpdate(payload.insert_and_return(cache))
             }
             DispatchEvent::UserPinnedDmsUpdate(payload) => {
                 CachedDispatchEvent::UserPinnedDmsUpdate(payload)
             }
             DispatchEvent::UserSettingsUpdate(payload) => {
-                CachedDispatchEvent::UserSettingsUpdate(payload.insert_and_return(cache).await)
+                CachedDispatchEvent::UserSettingsUpdate(payload.insert_and_return(cache))
             }
             DispatchEvent::UserGuildSettingsUpdate(payload) => {
                 CachedDispatchEvent::UserGuildSettingsUpdate(payload)
@@ -64,10 +64,7 @@ impl CachedDispatchEvent {
                 CachedDispatchEvent::RecentMentionDelete(payload)
             }
             DispatchEvent::SavedMessageCreate(payload) => CachedDispatchEvent::SavedMessageCreate(
-                CachedMessage::from_message(payload, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
+                CachedMessage::from_message(payload, cache).insert_and_return(cache),
             ),
             DispatchEvent::SavedMessageDelete(payload) => {
                 CachedDispatchEvent::SavedMessageDelete(payload)
@@ -87,7 +84,7 @@ impl CachedDispatchEvent {
             DispatchEvent::PresenceUpdate(payload) => CachedDispatchEvent::PresenceUpdate(payload),
             DispatchEvent::GuildCreate(payload) => CachedDispatchEvent::GuildCreate(payload),
             DispatchEvent::GuildUpdate(payload) => {
-                CachedDispatchEvent::GuildUpdate(payload.insert_and_return(cache).await)
+                CachedDispatchEvent::GuildUpdate(payload.insert_and_return(cache))
             }
             DispatchEvent::GuildDelete(payload) => CachedDispatchEvent::GuildDelete(payload),
             DispatchEvent::GuildMemberAdd(payload) => CachedDispatchEvent::GuildMemberAdd(payload),
@@ -118,16 +115,10 @@ impl CachedDispatchEvent {
             DispatchEvent::GuildBanAdd(payload) => CachedDispatchEvent::GuildBanAdd(payload),
             DispatchEvent::GuildBanRemove(payload) => CachedDispatchEvent::GuildBanRemove(payload),
             DispatchEvent::ChannelCreate(payload) => CachedDispatchEvent::ChannelCreate(
-                CachedChannel::from_channel(payload, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
+                CachedChannel::from_channel(payload, cache).insert_and_return(cache),
             ),
             DispatchEvent::ChannelUpdate(payload) => CachedDispatchEvent::ChannelUpdate(
-                CachedChannel::from_channel(payload, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
+                CachedChannel::from_channel(payload, cache).insert_and_return(cache),
             ),
             DispatchEvent::ChannelUpdateBulk(payload) => {
                 CachedDispatchEvent::ChannelUpdateBulk(payload)
@@ -144,13 +135,10 @@ impl CachedDispatchEvent {
                 CachedDispatchEvent::ChannelRecipientRemove(payload)
             }
             DispatchEvent::MessageCreate(payload) => CachedDispatchEvent::MessageCreate(
-                CachedMessageCreate::from_noncached(payload, cache).await,
+                CachedMessageCreate::from_noncached(payload, cache),
             ),
             DispatchEvent::MessageUpdate(payload) => CachedDispatchEvent::MessageUpdate(
-                CachedMessage::from_message(payload, cache)
-                    .await
-                    .insert_and_return(cache)
-                    .await,
+                CachedMessage::from_message(payload, cache).insert_and_return(cache),
             ),
             DispatchEvent::MessageDelete(payload) => CachedDispatchEvent::MessageDelete(payload),
             DispatchEvent::MessageDeleteBulk(payload) => {

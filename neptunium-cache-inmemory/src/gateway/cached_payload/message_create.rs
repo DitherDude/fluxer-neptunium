@@ -9,14 +9,9 @@ pub struct CachedMessageCreate {
 
 impl FromNonCached for CachedMessageCreate {
     type NonCached = MessageCreate;
-    async fn from_noncached(
-        non_cached: Self::NonCached,
-        cache: &std::sync::Arc<crate::Cache>,
-    ) -> Self {
-        let message = CachedMessage::from_message(non_cached.message, cache)
-            .await
-            .insert_and_return(cache)
-            .await;
+    fn from_noncached(non_cached: Self::NonCached, cache: &std::sync::Arc<crate::Cache>) -> Self {
+        let message =
+            CachedMessage::from_message(non_cached.message, cache).insert_and_return(cache);
         Self {
             message,
             channel_type: non_cached.channel_type,

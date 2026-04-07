@@ -53,11 +53,12 @@ pub struct CachedChannel {
 impl CachedChannel {
     /// Converts this cached channel into a normal `Channel`. This is async because it needs to
     /// access all cached recipients to clone them, which are behind an `RwLock`.
-    pub async fn into_channel(self) -> Channel {
+    #[must_use]
+    pub fn into_channel(self) -> Channel {
         let recipients = if let Some(cached_recipients) = self.recipients {
             let mut recipients = Vec::with_capacity(cached_recipients.len());
             for recipient in cached_recipients {
-                recipients.push((*recipient.read().await).clone());
+                recipients.push((*(*recipient.load())).clone());
             }
             Some(recipients)
         } else {
@@ -88,7 +89,8 @@ impl CachedChannel {
         }
     }
 
-    pub async fn from_channel(value: Channel, cache: &Arc<Cache>) -> Self {
+    #[must_use]
+    pub fn from_channel(value: Channel, cache: &Arc<Cache>) -> Self {
         let recipients = cache_option_vec!(value.recipients, cache);
         Self {
             bitrate: value.bitrate,
@@ -115,6 +117,7 @@ impl CachedChannel {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CachedMessage {
     pub attachments: Option<Vec<MessageAttachment>>,
     pub author: Cached<PartialUser>,
@@ -145,7 +148,8 @@ pub struct CachedMessage {
 }
 
 impl CachedMessage {
-    pub async fn from_message(value: Message, cache: &Arc<Cache>) -> Self {
+    #[must_use]
+    pub fn from_message(value: Message, cache: &Arc<Cache>) -> Self {
         // To make rust happy, we need to destructure
         let Message {
             base:
@@ -175,13 +179,11 @@ impl CachedMessage {
                 },
             referenced_message,
         } = value;
-        let author = author.insert_and_return(cache).await;
+        let author = author.insert_and_return(cache);
         let mentions = cache_option_vec!(mentions, cache);
-        let referenced_message = if let Some(referenced_message) = referenced_message {
-            Some(CachedMessageBase::from_message_base(referenced_message, cache).await)
-        } else {
-            None
-        };
+        let referenced_message = referenced_message.map(|referenced_message| {
+            CachedMessageBase::from_message_base(referenced_message, cache)
+        });
         Self {
             attachments,
             author,
@@ -209,22 +211,21 @@ impl CachedMessage {
         }
     }
 
-    pub async fn into_message(self) -> Message {
-        let author = self.author.read().await.clone();
+    #[must_use]
+    pub fn into_message(self) -> Message {
+        let author = self.author.clone_inner();
         let mentions = if let Some(cached_mentions) = self.mentions {
             let mut mentions = Vec::with_capacity(cached_mentions.len());
             for mention in cached_mentions {
-                mentions.push(mention.read().await.clone());
+                mentions.push(mention.clone_inner());
             }
             Some(mentions)
         } else {
             None
         };
-        let referenced_message = if let Some(referenced_message) = self.referenced_message {
-            Some(referenced_message.into_message_base().await)
-        } else {
-            None
-        };
+        let referenced_message = self
+            .referenced_message
+            .map(CachedMessageBase::into_message_base);
         Message {
             base: MessageBase {
                 attachments: self.attachments,
@@ -255,6 +256,7 @@ impl CachedMessage {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct CachedMessageBase {
     pub attachments: Option<Vec<MessageAttachment>>,
     pub author: Cached<PartialUser>,
@@ -283,8 +285,9 @@ pub struct CachedMessageBase {
 }
 
 impl CachedMessageBase {
-    pub async fn from_message_base(value: MessageBase, cache: &Arc<Cache>) -> Self {
-        let author = value.author.insert_and_return(cache).await;
+    #[must_use]
+    pub fn from_message_base(value: MessageBase, cache: &Arc<Cache>) -> Self {
+        let author = value.author.insert_and_return(cache);
         let mentions = cache_option_vec!(value.mentions, cache);
         Self {
             attachments: value.attachments,
@@ -312,12 +315,13 @@ impl CachedMessageBase {
         }
     }
 
-    pub async fn into_message_base(self) -> MessageBase {
-        let author = self.author.read().await.clone();
+    #[must_use]
+    pub fn into_message_base(self) -> MessageBase {
+        let author = self.author.clone_inner();
         let mentions = if let Some(cached_mentions) = self.mentions {
             let mut mentions = Vec::with_capacity(cached_mentions.len());
             for mention in cached_mentions {
-                mentions.push(mention.read().await.clone());
+                mentions.push(mention.clone_inner());
             }
             Some(mentions)
         } else {

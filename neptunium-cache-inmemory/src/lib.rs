@@ -1,5 +1,7 @@
 use std::{fmt::Debug, sync::Arc};
 
+use arc_swap::ArcSwap;
+use atomic_once_cell::AtomicOnceCell;
 use bon::Builder;
 use mini_moka::sync::Cache as MokaCache;
 use neptunium_http::endpoints::users::UserProfileFullResponse;
@@ -13,7 +15,6 @@ use neptunium_model::{
     invites::InviteWithMetadata,
     user::{PartialUser, settings::UserSettings},
 };
-use tokio::sync::OnceCell;
 
 pub mod gateway;
 #[cfg(feature = "statistics")]
@@ -26,7 +27,90 @@ pub use traits::*;
 #[cfg(feature = "statistics")]
 use crate::stats::CacheStats;
 
-pub type Cached<T> = Arc<tokio::sync::RwLock<T>>;
+// pub type Cached<T> = Arc<tokio::sync::RwLock<T>>;
+
+pub use arc_swap::Guard;
+
+pub struct Cached<T> {
+    inner: Arc<ArcSwap<T>>,
+}
+
+impl<T> Cached<T> {
+    #[must_use]
+    pub fn new(value: T) -> Self {
+        Self {
+            inner: Arc::new(ArcSwap::new(Arc::new(value))),
+        }
+    }
+
+    /// Get the latest value. This will be the latest value until a new value is stored.
+    #[must_use]
+    pub fn load(&self) -> Guard<Arc<T>> {
+        self.inner.load()
+    }
+
+    /// Store a new value. All new `load()` operations will return this new value
+    /// (until it is overwritten again), but existing `Guard`s will still hold the old value.
+    pub fn store(&self, new_value: Arc<T>) {
+        self.inner.store(new_value);
+    }
+
+    /// Modify the value "in-place". This does not actually modify the value in-place, but rather create
+    /// a clone of the value which it passes to the specified `modify_fn`, then store it.
+    pub fn modify(&self, modify_fn: impl FnOnce(&mut T))
+    where
+        T: Clone,
+    {
+        let mut value = self.clone_inner();
+        modify_fn(&mut value);
+        self.store(Arc::new(value));
+    }
+
+    /// Only stores the modified value if `modify_fn` returns `Ok(())`.
+    /// # Errors
+    /// Returns the result of the closure.
+    pub fn try_modify<E>(&self, modify_fn: impl FnOnce(&mut T) -> Result<(), E>) -> Result<(), E>
+    where
+        T: Clone,
+    {
+        let mut value = self.clone_inner();
+        let result = modify_fn(&mut value);
+        if result.is_ok() {
+            self.store(Arc::new(value));
+        }
+        result
+    }
+
+    /// Stores the value and then returns a clone of `Self`.
+    #[must_use]
+    pub fn store_and_return(&self, new_value: T) -> Self {
+        self.inner.store(Arc::new(new_value));
+        self.clone()
+    }
+
+    /// Clones the stored value and returns it.
+    #[must_use]
+    pub fn clone_inner(&self) -> T
+    where
+        T: Clone,
+    {
+        (*(*self.load())).clone()
+    }
+}
+
+impl<T> Debug for Cached<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Cached { ... }")
+    }
+}
+
+impl<T> Clone for Cached<T> {
+    fn clone(&self) -> Self {
+        Self {
+            inner: self.inner.clone(),
+        }
+    }
+}
 
 // TODO: More things to cache: guild channels (guild id->channels), relationships,
 // guild invites (guild id->invites), guild members
@@ -37,8 +121,8 @@ pub struct Cache {
         MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<UserProfileFullResponse>>,
     pub channels: MokaCache<Id<ChannelMarker>, Cached<CachedChannel>>,
     pub messages: MokaCache<Id<MessageMarker>, Cached<CachedMessage>>,
-    pub current_user: OnceCell<Cached<UserPrivateResponse>>,
-    pub current_user_settings: OnceCell<Cached<UserSettings>>,
+    pub current_user: AtomicOnceCell<Cached<UserPrivateResponse>>,
+    pub current_user_settings: AtomicOnceCell<Cached<UserSettings>>,
     pub invites: MokaCache<String, Cached<InviteWithMetadata>>,
     pub guilds: MokaCache<Id<GuildMarker>, Cached<Guild>>,
     // TODO: Attach guild id
@@ -77,8 +161,8 @@ impl Cache {
             user_profiles: MokaCache::new(config.user_profiles),
             channels: MokaCache::new(config.channels),
             messages: MokaCache::new(config.messages),
-            current_user: OnceCell::new(),
-            current_user_settings: OnceCell::new(),
+            current_user: AtomicOnceCell::new(),
+            current_user_settings: AtomicOnceCell::new(),
             invites: MokaCache::new(config.invites),
             guilds: MokaCache::new(config.guilds),
             roles: MokaCache::new(config.roles),

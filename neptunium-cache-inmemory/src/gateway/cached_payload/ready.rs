@@ -53,23 +53,21 @@ pub struct CachedReady {
 
 impl FromNonCached for CachedReady {
     type NonCached = Ready;
-    async fn from_noncached(non_cached: Self::NonCached, cache: &Arc<Cache>) -> Self {
-        let user = non_cached.user.insert_and_return(cache).await;
+    fn from_noncached(non_cached: Self::NonCached, cache: &Arc<Cache>) -> Self {
+        let user = non_cached.user.insert_and_return(cache);
         let private_channels =
             // cache_option_vec!(non_cached.private_channels, cache, async |value| CachedChannel::from_channel(value, cache).await);
             if let Some(private_channels) = non_cached.private_channels {
                 let mut cached_private_channels = Vec::with_capacity(private_channels.len());
                 for channel in private_channels {
-                    cached_private_channels.push(CachedChannel::from_channel(channel, cache).await.insert_and_return(cache).await);
+                    cached_private_channels.push(CachedChannel::from_channel(channel, cache).insert_and_return(cache));
                 }
                 Some(cached_private_channels)
             } else { None };
         let users = cache_option_vec!(non_cached.users, cache);
-        let user_settings = if let Some(settings) = non_cached.user_settings {
-            Some(settings.insert_and_return(cache).await)
-        } else {
-            None
-        };
+        let user_settings = non_cached
+            .user_settings
+            .map(|settings| settings.insert_and_return(cache));
 
         Self {
             version: non_cached.version,

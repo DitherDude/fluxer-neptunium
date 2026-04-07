@@ -12,12 +12,11 @@ use neptunium_model::{
     invites::{GroupDmInvite, GuildInvite, InviteWithMetadata, PackInvite},
     user::PartialUser,
 };
-use tokio::sync::RwLock;
 
 pub mod cachable_endpoints;
 
-pub(crate) trait CacheValue {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self>;
+pub(crate) trait CacheValue: Sized {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self>;
 }
 
 #[async_trait]
@@ -34,59 +33,41 @@ pub trait CachableEndpoint: Endpoint {
 }
 
 impl CacheValue for CachedChannel {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let channel_id = self.id;
         if let Some(existing_channel) = cache.channels.get(&channel_id) {
-            {
-                let mut guard = existing_channel.write().await;
-                *guard = self;
-            }
-            return existing_channel;
+            return existing_channel.store_and_return(self);
         }
-        let value = Arc::new(RwLock::new(self));
-        cache.channels.insert(channel_id, Arc::clone(&value));
+        let value = Cached::new(self);
+        cache.channels.insert(channel_id, value.clone());
         value
     }
 }
 
 impl CacheValue for CachedMessage {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let message_id = self.id;
         if let Some(existing_message) = cache.messages.get(&message_id) {
-            {
-                let mut guard = existing_message.write().await;
-                *guard = self;
-            }
-            return existing_message;
+            return existing_message.store_and_return(self);
         }
-        let value = Arc::new(RwLock::new(self));
-        cache.messages.insert(message_id, Arc::clone(&value));
+        let value = Cached::new(self);
+        cache.messages.insert(message_id, value.clone());
         value
     }
 }
 
 impl CacheValue for UserPrivateResponse {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         if let Some(existing_user) = cache.current_user.get() {
-            let existing_user = Arc::clone(existing_user);
-            {
-                let mut guard = existing_user.write().await;
-                *guard = self;
-            }
-            existing_user
+            existing_user.store_and_return(self)
         } else {
-            Arc::clone(
-                cache
-                    .current_user
-                    .get_or_init(async || Arc::new(RwLock::new(self)))
-                    .await,
-            )
+            cache.current_user.get_or_init(|| Cached::new(self)).clone()
         }
     }
 }
 
 impl CacheValue for InviteWithMetadata {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let code = match &self {
             Self::EmojiPack(PackInvite { code, .. }, _)
             | Self::GroupDm(GroupDmInvite { code, .. }, _)
@@ -94,82 +75,59 @@ impl CacheValue for InviteWithMetadata {
             | Self::StickerPack(PackInvite { code, .. }, _) => code.clone(),
         };
         if let Some(cached_invite) = cache.invites.get(&code) {
-            {
-                let mut guard = cached_invite.write().await;
-                *guard = self;
-            }
-            return cached_invite;
+            return cached_invite.store_and_return(self);
         }
-        let cached_self = Arc::new(RwLock::new(self));
-        cache.invites.insert(code, Arc::clone(&cached_self));
-        cached_self
+        let cached = Cached::new(self);
+        cache.invites.insert(code, cached.clone());
+        cached
     }
 }
 
 impl CacheValue for PartialUser {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let user_id = self.id;
         if let Some(existing_user) = cache.users.get(&user_id) {
-            {
-                let mut guard = existing_user.write().await;
-                *guard = self;
-            }
-            return existing_user;
+            return existing_user.store_and_return(self);
         }
-        let value = Arc::new(RwLock::new(self));
-        cache.users.insert(user_id, Arc::clone(&value));
-        value
+        let cached = Cached::new(self);
+        cache.users.insert(user_id, cached.clone());
+        cached
     }
 }
 
 impl CacheValue for neptunium_model::user::settings::UserSettings {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         if let Some(existing_settings) = cache.current_user_settings.get() {
-            let existing_settings = Arc::clone(existing_settings);
-            {
-                let mut guard = existing_settings.write().await;
-                *guard = self;
-            }
-            existing_settings
+            existing_settings.store_and_return(self)
         } else {
-            Arc::clone(
-                cache
-                    .current_user_settings
-                    .get_or_init(async || Arc::new(RwLock::new(self)))
-                    .await,
-            )
+            cache
+                .current_user_settings
+                .get_or_init(|| Cached::new(self))
+                .clone()
         }
     }
 }
 
 impl CacheValue for Guild {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let guild_id = self.id;
         if let Some(existing_guild) = cache.guilds.get(&guild_id) {
-            {
-                let mut guard = existing_guild.write().await;
-                *guard = self;
-            }
-            return existing_guild;
+            return existing_guild.store_and_return(self);
         }
-        let value = Arc::new(RwLock::new(self));
-        cache.guilds.insert(guild_id, Arc::clone(&value));
-        value
+        let cached = Cached::new(self);
+        cache.guilds.insert(guild_id, cached.clone());
+        cached
     }
 }
 
 impl CacheValue for GuildRole {
-    async fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
+    fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Self> {
         let role_id = self.id;
         if let Some(existing_role) = cache.roles.get(&role_id) {
-            {
-                let mut guard = existing_role.write().await;
-                *guard = self;
-            }
-            return existing_role;
+            return existing_role.store_and_return(self);
         }
-        let value = Arc::new(RwLock::new(self));
-        cache.roles.insert(role_id, Arc::clone(&value));
-        value
+        let cached = Cached::new(self);
+        cache.roles.insert(role_id, cached.clone());
+        cached
     }
 }

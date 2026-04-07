@@ -10,14 +10,14 @@ use crate::Cache;
 
 pub(crate) trait FromNonCached {
     type NonCached;
-    async fn from_noncached(non_cached: Self::NonCached, cache: &Arc<Cache>) -> Self;
+    fn from_noncached(non_cached: Self::NonCached, cache: &Arc<Cache>) -> Self;
 }
 
 macro_rules! cache_vec {
     ($input:expr, $cache:expr) => {{
         let mut cached_vec = Vec::with_capacity($input.len());
         for elem in $input {
-            cached_vec.push($crate::traits::CacheValue::insert_and_return(elem, $cache).await);
+            cached_vec.push($crate::traits::CacheValue::insert_and_return(elem, $cache));
         }
         cached_vec
     }};
