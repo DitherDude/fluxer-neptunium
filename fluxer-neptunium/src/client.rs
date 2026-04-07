@@ -4,6 +4,7 @@ use neptunium_cache_inmemory::{Cache, gateway::CachedDispatchEvent};
 use neptunium_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
 use neptunium_http::client::HttpClient;
 use neptunium_model::gateway::{
+    close_code::GatewayCloseCode,
     event::{dispatch::DispatchEvent, gateway::GatewayEvent, invalid_session::InvalidSessionEvent},
     payload::outgoing::{
         ConnectionProperties, Heartbeat, LazyRequest, OutgoingGatewayMessage,
@@ -153,6 +154,14 @@ impl Client {
                 Err(e) => e,
             };
             if self.auto_reconnect {
+                if let ClientErrorKind::ConnectionClosed(close_frame) = error.kind()
+                    && let Some(close_frame) = close_frame
+                    && let Some(close_code) = GatewayCloseCode::from_u16(close_frame.code.into())
+                    && !close_code.is_recoverable()
+                {
+                    tracing::debug!("Close code is not recoverable. Exiting.");
+                    break Err(error);
+                }
                 tracing::warn!("Client error: {error}");
                 tracing::info!(
                     "Reconnecting in {} seconds because auto-reconnect is enabled.",
