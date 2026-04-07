@@ -1,4 +1,3 @@
-#[cfg(feature = "user_api")]
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -47,14 +46,23 @@ use neptunium_model::{
     },
 };
 use neptunium_model::{
-    gateway::payload::{incoming::UserPrivateResponse, outgoing::PresenceUpdateOutgoing},
+    gateway::payload::{
+        incoming::UserPrivateResponse,
+        outgoing::{GuildSubscriptionRequest, LazyRequest, PresenceUpdateOutgoing},
+    },
     guild::Guild,
-    id::{Id, marker::ChannelMarker},
+    id::{
+        Id,
+        marker::{ChannelMarker, GuildMarker},
+    },
 };
-use tokio::sync::mpsc::UnboundedSender;
+use tokio::sync::mpsc::{UnboundedSender, unbounded_channel};
 
 use crate::{
-    client::{ClientMessage, error::Error},
+    client::{
+        ClientMessage,
+        error::{ClientErrorKind, Error},
+    },
     exts::ChannelExt,
 };
 
@@ -76,10 +84,48 @@ impl Context {
     // TODO: Make this be async and block
     /// Update the presence by sending a gateway request. Due to
     /// how the crate is structured currently, this does not block.
-    pub fn update_presence(&self, data: PresenceUpdateOutgoing) {
-        // ignoring potential error caused by the channel being closed
-        // TODO: Maybe not ignore it
-        let _ = self.tx.send(ClientMessage::UpdatePresence(data));
+    pub async fn update_presence(&self, data: PresenceUpdateOutgoing) -> Result<(), Error> {
+        let (tx, mut rx) = unbounded_channel();
+        if self
+            .tx
+            .send(ClientMessage::UpdatePresence(data, tx))
+            .is_err()
+        {
+            return Err(Error::new(ClientErrorKind::ClientNotPresent));
+        }
+        if let Some(result) = rx.recv().await {
+            match result {
+                Ok(()) => Ok(()),
+                Err(e) => Err(Error::new(ClientErrorKind::NetworkError(e))),
+            }
+        } else {
+            Err(Error::new(ClientErrorKind::ClientNotPresent))
+        }
+    }
+
+    pub async fn update_guild_event_subscriptions(
+        &self,
+        subscriptions: HashMap<Id<GuildMarker>, GuildSubscriptionRequest>,
+    ) -> Result<(), Error> {
+        let (tx, mut rx) = unbounded_channel();
+        if self
+            .tx
+            .send(ClientMessage::SendLazyRequest(
+                LazyRequest { subscriptions },
+                tx,
+            ))
+            .is_err()
+        {
+            return Err(Error::new(ClientErrorKind::ClientNotPresent));
+        }
+        if let Some(result) = rx.recv().await {
+            match result {
+                Ok(()) => Ok(()),
+                Err(e) => Err(Error::new(ClientErrorKind::NetworkError(e))),
+            }
+        } else {
+            Err(Error::new(ClientErrorKind::ClientNotPresent))
+        }
     }
 
     /// Fetch a channel from the API.

@@ -8,7 +8,7 @@ use crate::gateway::{
     event::{
         dispatch::DispatchEventPayload, invalid_session::InvalidSessionEvent, op_code::OpCode,
     },
-    payload::incoming::Hello,
+    payload::incoming::{GatewayError, Hello},
 };
 
 #[expect(clippy::large_enum_variant)]
@@ -20,6 +20,7 @@ pub enum GatewayEvent {
     Hello(Hello),
     InvalidSession(InvalidSessionEvent),
     Reconnect,
+    GatewayError(GatewayError),
 }
 
 impl<'de> Deserialize<'de> for GatewayEvent {

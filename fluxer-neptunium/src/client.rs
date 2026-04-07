@@ -1,4 +1,4 @@
-use std::{ops::Deref, sync::Arc, time::Duration};
+use std::{collections::HashMap, ops::Deref, sync::Arc, time::Duration};
 
 use neptunium_cache_inmemory::{Cache, gateway::CachedDispatchEvent};
 use neptunium_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
@@ -6,7 +6,8 @@ use neptunium_http::client::HttpClient;
 use neptunium_model::gateway::{
     event::{dispatch::DispatchEvent, gateway::GatewayEvent, invalid_session::InvalidSessionEvent},
     payload::outgoing::{
-        ConnectionProperties, Heartbeat, OutgoingGatewayMessage, PresenceUpdateOutgoing,
+        ConnectionProperties, GuildSubscriptionRequest, Heartbeat, LazyRequest,
+        OutgoingGatewayMessage, PresenceUpdateOutgoing,
     },
 };
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender, unbounded_channel};
@@ -25,7 +26,14 @@ pub use config::*;
 
 pub(crate) enum ClientMessage {
     Heartbeat,
-    UpdatePresence(PresenceUpdateOutgoing),
+    UpdatePresence(
+        PresenceUpdateOutgoing,
+        UnboundedSender<Result<(), neptunium_gateway::shard::Error>>,
+    ),
+    SendLazyRequest(
+        LazyRequest,
+        UnboundedSender<Result<(), neptunium_gateway::shard::Error>>,
+    ),
     PropagateEventError(EventError),
 }
 
@@ -226,8 +234,11 @@ impl Client {
                                 }))
                                 .await?;
                         }
-                        ClientMessage::UpdatePresence(data) => {
-                            self.shard.send_gateway_message(OutgoingGatewayMessage::PresenceUpdate(data)).await?;
+                        ClientMessage::UpdatePresence(data, sender) => {
+                            let _ = sender.send(self.shard.send_gateway_message(OutgoingGatewayMessage::PresenceUpdate(data)).await);
+                        }
+                        ClientMessage::SendLazyRequest(data, sender) => {
+                            let _ = sender.send(self.shard.send_gateway_message(OutgoingGatewayMessage::LazyRequest(data)).await);
                         }
                         ClientMessage::PropagateEventError(error) => {
                             // If an error occurs while closing, we still want to propagate the event error instead of the websocket error.
@@ -292,7 +303,10 @@ impl Client {
             GatewayEvent::Dispatch(payload) => {
                 // TODO: Maybe check if the current sequence number is bigger than the received one because that shouldn't happen? Or something...
                 self.last_sequence_number = Some(payload.sequence_number);
-                self.handle_dispatch_event(payload.event);
+                return self.handle_dispatch_event(payload.event).await;
+            }
+            GatewayEvent::GatewayError(payload) => {
+                tracing::warn!("Gateway error: {:?}", payload);
                 return Ok(());
             }
         }
@@ -316,7 +330,7 @@ impl Client {
     }
 
     #[expect(clippy::too_many_lines)]
-    fn handle_dispatch_event(&mut self, event: DispatchEvent) {
+    async fn handle_dispatch_event(&mut self, event: DispatchEvent) -> Result<(), Box<Error>> {
         tracing::trace!("Dispatch Event: {event:?}");
         macro_rules! call_event_handlers {
             ($always_propagate_event_errors:expr, $tx:expr, $handlers:expr, $ctx:expr, $data:expr => $func_name:ident) => {{
@@ -437,6 +451,23 @@ impl Client {
                 call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_presence_update);
             }
             CachedDispatchEvent::GuildCreate(data) => {
+                let guild_id = data.id;
+                self.context
+                    .update_guild_event_subscriptions({
+                        let mut hashmap = HashMap::new();
+                        hashmap.insert(
+                            guild_id,
+                            GuildSubscriptionRequest {
+                                active: Some(true),
+                                member_list_channels: None,
+                                members: None,
+                                typing: Some(true),
+                                sync: None,
+                            },
+                        );
+                        hashmap
+                    })
+                    .await?;
                 call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_guild_create);
             }
             CachedDispatchEvent::GuildUpdate(data) => {
@@ -573,5 +604,6 @@ impl Client {
                 call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_passive_updates);
             }
         }
+        Ok(())
     }
 }

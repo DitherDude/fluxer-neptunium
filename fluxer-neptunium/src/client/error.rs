@@ -70,6 +70,7 @@ impl std::fmt::Display for Error {
                 f.write_fmt(format_args!("API Error: Invalid response: {s}"))
             }
             ClientErrorKind::EventError(err) => f.write_fmt(format_args!("Event error: {err}")),
+            ClientErrorKind::ClientNotPresent => f.write_str("Client no longer exists"),
         }
     }
 }
@@ -124,6 +125,7 @@ pub enum ClientErrorKind {
     // TODO: Currently this needs to be Boxed because else it would be an infinite cycle
     // of Error<->EventError
     EventError(Box<EventError>),
+    ClientNotPresent,
 }
 
 impl From<tungstenite::Error> for Error {

@@ -4,11 +4,13 @@ use crate::gateway::event::op_code::OpCode;
 
 mod heartbeat;
 mod identify;
+mod lazy_request;
 mod presence_update;
 mod resume;
 
 pub use heartbeat::*;
 pub use identify::*;
+pub use lazy_request::*;
 pub use presence_update::*;
 pub use resume::*;
 
@@ -18,6 +20,7 @@ pub enum OutgoingGatewayMessage {
     Heartbeat(Heartbeat),
     PresenceUpdate(PresenceUpdateOutgoing),
     Resume(Resume),
+    LazyRequest(LazyRequest),
 }
 
 impl Serialize for OutgoingGatewayMessage {
@@ -32,6 +35,7 @@ impl Serialize for OutgoingGatewayMessage {
             Self::Heartbeat(_) => OpCode::Heartbeat,
             Self::PresenceUpdate(_) => OpCode::PresenceUpdate,
             Self::Resume(_) => OpCode::Resume,
+            Self::LazyRequest(_) => OpCode::LazyRequest,
         } as u8;
         s.serialize_field("op", &op)?;
         match self {
@@ -39,6 +43,7 @@ impl Serialize for OutgoingGatewayMessage {
             Self::Identify(d) => s.serialize_field("d", d),
             Self::PresenceUpdate(d) => s.serialize_field("d", d),
             Self::Resume(d) => s.serialize_field("d", d),
+            Self::LazyRequest(d) => s.serialize_field("d", d),
         }?;
 
         s.end()

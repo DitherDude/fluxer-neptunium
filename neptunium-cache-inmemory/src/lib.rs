@@ -131,19 +131,19 @@ pub struct Cache {
 
 #[derive(Builder, Copy, Clone, Debug)]
 pub struct CacheConfig {
-    #[builder(default = 1024)]
+    #[builder(default = u64::MAX)]
     pub users: u64,
-    #[builder(default = 256)]
+    #[builder(default = u64::MAX)]
     pub user_profiles: u64,
-    #[builder(default = 1024)]
+    #[builder(default = u64::MAX)]
     pub channels: u64,
-    #[builder(default = 1024)]
+    #[builder(default = 4096)]
     pub messages: u64,
-    #[builder(default = 256)]
+    #[builder(default = 4096)]
     pub invites: u64,
-    #[builder(default = 1024)]
+    #[builder(default = u64::MAX)]
     pub guilds: u64,
-    #[builder(default = 1024)]
+    #[builder(default = u64::MAX)]
     pub roles: u64,
 }
 
