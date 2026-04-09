@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use neptunium_http::endpoints::users::MutualGuild;
 use neptunium_model::{
     channel::{
         Channel, ChannelType, PermissionOverwrite, VoiceRegion,
@@ -8,15 +9,12 @@ use neptunium_model::{
             MessageSnapshot, MessageSticker, MessageType, attachment::MessageAttachment,
             embed::MessageEmbed, nonce::Nonce,
         },
-    },
-    id::{
+    }, gateway::payload::incoming::UserPremiumType, guild::member::{GuildMember, GuildMemberProfile, GuildMemberProfileFlags}, id::{
         Id,
         marker::{
             ChannelMarker, GuildMarker, MessageMarker, RoleMarker, UserMarker, WebhookMarker,
         },
-    },
-    time::timestamp::{Timestamp, representations::Iso8601},
-    user::PartialUser,
+    }, misc::{HexColor32, ImageHash}, time::timestamp::{Timestamp, representations::Iso8601}, user::{PartialUser, UserExternalAccountConnection, UserProfileData}
 };
 
 use crate::{Cache, CacheValue, Cached, gateway::cached_payload::cache_option_vec};
@@ -223,9 +221,7 @@ impl CachedMessage {
         } else {
             None
         };
-        let referenced_message = self
-            .referenced_message
-            .map(CachedMessageBase::into_message_base);
+        let referenced_message = self.referenced_message.map(MessageBase::from);
         Message {
             base: MessageBase {
                 attachments: self.attachments,
@@ -250,6 +246,49 @@ impl CachedMessage {
                 tts: self.tts,
                 r#type: self.r#type,
                 webhook_id: self.webhook_id,
+            },
+            referenced_message,
+        }
+    }
+}
+
+impl From<CachedMessage> for Message {
+    fn from(value: CachedMessage) -> Self {
+        let author = value.author.clone_inner();
+        let mentions = if let Some(cached_mentions) = value.mentions {
+            let mut mentions = Vec::with_capacity(cached_mentions.len());
+            for mention in cached_mentions {
+                mentions.push(mention.clone_inner());
+            }
+            Some(mentions)
+        } else {
+            None
+        };
+        let referenced_message = value.referenced_message.map(MessageBase::from);
+        Self {
+            base: MessageBase {
+                attachments: value.attachments,
+                author,
+                call: value.call,
+                channel_id: value.channel_id,
+                content: value.content,
+                edited_timestamp: value.edited_timestamp,
+                embeds: value.embeds,
+                flags: value.flags,
+                id: value.id,
+                mention_everyone: value.mention_everyone,
+                mention_roles: value.mention_roles,
+                mentions,
+                message_reference: value.message_reference,
+                message_snapshots: value.message_snapshots,
+                nonce: value.nonce,
+                pinned: value.pinned,
+                reactions: value.reactions,
+                stickers: value.stickers,
+                timestamp: value.timestamp,
+                tts: value.tts,
+                r#type: value.r#type,
+                webhook_id: value.webhook_id,
             },
             referenced_message,
         }
@@ -314,11 +353,12 @@ impl CachedMessageBase {
             webhook_id: value.webhook_id,
         }
     }
+}
 
-    #[must_use]
-    pub fn into_message_base(self) -> MessageBase {
-        let author = self.author.clone_inner();
-        let mentions = if let Some(cached_mentions) = self.mentions {
+impl From<CachedMessageBase> for MessageBase {
+    fn from(value: CachedMessageBase) -> Self {
+        let author = value.author.clone_inner();
+        let mentions = if let Some(cached_mentions) = value.mentions {
             let mut mentions = Vec::with_capacity(cached_mentions.len());
             for mention in cached_mentions {
                 mentions.push(mention.clone_inner());
@@ -327,29 +367,93 @@ impl CachedMessageBase {
         } else {
             None
         };
-        MessageBase {
-            attachments: self.attachments,
+        Self {
+            attachments: value.attachments,
             author,
-            call: self.call,
-            channel_id: self.channel_id,
-            content: self.content,
-            edited_timestamp: self.edited_timestamp,
-            embeds: self.embeds,
-            flags: self.flags,
-            id: self.id,
-            mention_everyone: self.mention_everyone,
-            mention_roles: self.mention_roles,
+            call: value.call,
+            channel_id: value.channel_id,
+            content: value.content,
+            edited_timestamp: value.edited_timestamp,
+            embeds: value.embeds,
+            flags: value.flags,
+            id: value.id,
+            mention_everyone: value.mention_everyone,
+            mention_roles: value.mention_roles,
             mentions,
-            message_reference: self.message_reference,
-            message_snapshots: self.message_snapshots,
-            nonce: self.nonce,
-            pinned: self.pinned,
-            reactions: self.reactions,
-            stickers: self.stickers,
-            timestamp: self.timestamp,
-            tts: self.tts,
-            r#type: self.r#type,
-            webhook_id: self.webhook_id,
+            message_reference: value.message_reference,
+            message_snapshots: value.message_snapshots,
+            nonce: value.nonce,
+            pinned: value.pinned,
+            reactions: value.reactions,
+            stickers: value.stickers,
+            timestamp: value.timestamp,
+            tts: value.tts,
+            r#type: value.r#type,
+            webhook_id: value.webhook_id,
         }
     }
+}
+
+pub struct CachedGuildMember {
+    pub accent_color: Option<HexColor32>,
+    pub avatar: Option<ImageHash>,
+    /// Timestamp until which the member is timed out.
+    pub communication_disabled_until: Option<Timestamp<Iso8601>>,
+    pub deaf: bool,
+    pub joined_at: Timestamp<Iso8601>,
+    pub mute: bool,
+    pub nick: Option<String>,
+    pub profile_flags: Option<GuildMemberProfileFlags>,
+    pub roles: Vec<Id<RoleMarker>>,
+    pub user: Cached<PartialUser>,
+}
+
+impl CachedGuildMember {
+    pub fn from_guild_member(guild_member: GuildMember, cache: &Arc<Cache>) -> Self {
+        let cached_user = guild_member.user.insert_and_return(cache);
+        Self {
+            accent_color: guild_member.accent_color,
+            avatar: guild_member.avatar,
+            communication_disabled_until: guild_member.communication_disabled_until,
+            deaf: guild_member.deaf,
+            joined_at: guild_member.joined_at,
+            mute: guild_member.mute,
+            nick: guild_member.nick,
+            profile_flags: guild_member.profile_flags,
+            roles: guild_member.roles,
+            user: cached_user,
+        }
+    }
+}
+
+impl From<CachedGuildMember> for GuildMember {
+    fn from(value: CachedGuildMember) -> Self {
+        let user = value.user.clone_inner();
+        Self {
+            accent_color: value.accent_color,
+            avatar: value.avatar,
+            communication_disabled_until: value.communication_disabled_until,
+            deaf: value.deaf,
+            joined_at: value.joined_at,
+            mute: value.mute,
+            nick: value.nick,
+            profile_flags: value.profile_flags,
+            roles: value.roles,
+            user,
+        }
+    }
+}
+
+pub struct CachedUserProfileFullResponse {
+    pub user: Cached<PartialUser>,
+    pub user_profile: Cached<UserProfileData>,
+    pub guild_member: Option<Cached<GuildMember>>,
+    pub guild_member_profile: Option<Cached<GuildMemberProfile>>,
+    pub premium_type: Option<UserPremiumType>,
+    pub premium_since: Option<Timestamp<Iso8601>>,
+    /// Visionary ID.
+    pub premium_lifetime_seqence: Option<u32>,
+    pub mutual_friends: Option<Vec<PartialUser>>,
+    pub mutual_guilds: Option<Vec<MutualGuild>>,
+    pub connected_accounts: Option<Vec<UserExternalAccountConnection>>,
 }
