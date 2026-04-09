@@ -14,7 +14,7 @@ use neptunium_http::endpoints::{
     webhooks::{CreateWebhook, ListChannelWebhooks},
 };
 use neptunium_model::{
-    channel::VoiceRegion,
+    channel::{Channel, VoiceRegion},
     guild::webhook::Webhook,
     id::{
         Id,
@@ -24,7 +24,8 @@ use neptunium_model::{
 };
 
 use crate::{
-    client::error::Error, events::context::Context, internal::traits::channel::ChannelTrait,
+    client::error::Error, events::context::Context, exts::PartialUserExt,
+    internal::traits::channel::ChannelTrait,
 };
 
 #[async_trait]
@@ -130,6 +131,45 @@ pub trait ChannelExt {
     async fn pin(&self, ctx: &Context) -> Result<(), Error>;
     /// Unpin this channel for the current user if it is a DM channel.
     async fn unpin(&self, ctx: &Context) -> Result<(), Error>;
+}
+
+pub trait ChannelDataExt {
+    /// Get the channel name. If this channel doesn't have a `name` set (as is the case with most DM channels),
+    /// this will return the name of the DM channel just like how it would be displayed in the Fluxer client.
+    /// If the channel has no recipients and no name (should never happen), this will return the channel ID as a string.
+    fn channel_name(&self) -> String;
+}
+
+impl ChannelDataExt for Channel {
+    fn channel_name(&self) -> String {
+        if let Some(name) = &self.name {
+            name.clone()
+        } else if let Some(recipients) = &self.recipients {
+            recipients
+                .iter()
+                .map(PartialUserExt::display_name)
+                .collect::<Vec<String>>()
+                .join(", ")
+        } else {
+            self.id.to_string()
+        }
+    }
+}
+
+impl ChannelDataExt for CachedChannel {
+    fn channel_name(&self) -> String {
+        if let Some(name) = &self.name {
+            name.clone()
+        } else if let Some(recipients) = &self.recipients {
+            recipients
+                .iter()
+                .map(|recipient| recipient.load().display_name())
+                .collect::<Vec<String>>()
+                .join(", ")
+        } else {
+            self.id.to_string()
+        }
+    }
 }
 
 #[async_trait]
