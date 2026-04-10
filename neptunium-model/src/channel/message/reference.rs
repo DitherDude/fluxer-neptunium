@@ -24,6 +24,7 @@ pub struct MessageReference {
     pub guild_id: Option<Id<GuildMarker>>,
     /// The ID of the referenced message.
     pub message_id: Id<MessageMarker>,
-    #[serde(rename = "type")]
-    pub r#type: Option<MessageReferenceType>,
+    #[builder(default)]
+    #[serde(rename = "type", default)]
+    pub r#type: MessageReferenceType,
 }
