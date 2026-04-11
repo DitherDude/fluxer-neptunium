@@ -6,9 +6,9 @@ use crate::{
         AuthSessionChange, CallCreate, CallDelete, CallUpdate, ChannelPinsAck, ChannelPinsUpdate,
         ChannelRecipientAdd, ChannelRecipientRemove, ChannelUpdateBulk, FavoriteMemeDelete,
         GuildAuditLogEntryCreate, GuildBanAdd, GuildBanRemove, GuildCreate, GuildDelete,
-        GuildEmojisUpdate, GuildMemberRemove, GuildRoleCreate, GuildRoleDelete, GuildRoleUpdate,
-        GuildRoleUpdateBulk, GuildStickersUpdate, InviteDelete, MessageAck, MessageCreate,
-        MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
+        GuildEmojisUpdate, GuildMemberRemove, GuildMembersChunk, GuildRoleCreate, GuildRoleDelete,
+        GuildRoleUpdate, GuildRoleUpdateBulk, GuildStickersUpdate, InviteDelete, MessageAck,
+        MessageCreate, MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
         MessageReactionRemoveAll, MessageReactionRemoveEmoji, PresenceUpdateIncoming, Ready,
         RecentMentionDelete, RelationshipRemove, SavedMessageDelete, TypingStart, UserNoteUpdate,
         UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
@@ -22,6 +22,9 @@ use crate::{
     },
 };
 
+// For some reason rust-analyzer tells me a warning but clippy does not, this is
+// to make both of them happy
+#[allow(clippy::large_enum_variant)]
 #[derive(Deserialize, Debug, Clone)]
 #[serde(tag = "t", content = "d", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DispatchEvent {
@@ -101,6 +104,9 @@ pub enum DispatchEvent {
     CallDelete(CallDelete),
     // Source: https://github.com/fluxerapp/fluxer/blob/refactor/fluxer_app/src/stores/gateway/handlers/guild/PassiveUpdates.tsx#L39
     PassiveUpdates(crate::gateway::payload::incoming::PassiveUpdates),
+    // Source: https://github.com/fluxerapp/fluxer/blob/ee1f27fe1a372b5291aead8042944afd706bf5db/fluxer_app/src/stores/gateway/handlers/guild/GuildMembersChunk.tsx#L45
+    /// Sent in response to `RequestGuildMembers`.
+    GuildMembersChunk(GuildMembersChunk),
 }
 
 #[derive(Deserialize, Clone, Debug)]
