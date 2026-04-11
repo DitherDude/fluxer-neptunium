@@ -1,5 +1,6 @@
 use std::{
     fmt::Display,
+    hash::Hash,
     marker::PhantomData,
     sync::atomic::{AtomicU64, Ordering},
 };
@@ -9,9 +10,30 @@ use time::OffsetDateTime;
 
 use crate::id::{Id, marker::IdMarker};
 
+#[derive(Debug)]
 pub struct AtomicId<T: IdMarker> {
     _marker: PhantomData<T>,
     value: AtomicU64,
+}
+
+impl<T: IdMarker> Clone for AtomicId<T> {
+    fn clone(&self) -> Self {
+        Self::new(self.load())
+    }
+}
+
+impl<T: IdMarker> PartialEq for AtomicId<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.load() == other.load()
+    }
+}
+
+impl<T: IdMarker> Eq for AtomicId<T> {}
+
+impl<T: IdMarker> Hash for AtomicId<T> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.load().hash(state);
+    }
 }
 
 impl<T: IdMarker> AtomicId<T> {
@@ -33,8 +55,12 @@ impl<T: IdMarker> AtomicId<T> {
         self.value.load(Ordering::Acquire)
     }
 
-    pub fn store(&self, value: u64) {
+    pub fn store_raw(&self, value: u64) {
         self.value.store(value, Ordering::Release);
+    }
+
+    pub fn store(&self, value: Id<T>) {
+        self.store_raw(value.into_inner());
     }
 
     /// Cast this ID to a different marker type.

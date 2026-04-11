@@ -1,5 +1,6 @@
 use std::{collections::HashMap, sync::Arc};
 
+use atomic_once_cell::AtomicOnceCell;
 use neptunium_http::endpoints::users::MutualGuild;
 use neptunium_model::{
     channel::{
@@ -13,7 +14,7 @@ use neptunium_model::{
     gateway::payload::incoming::UserPremiumType,
     guild::member::{GuildMember, GuildMemberProfile, GuildMemberProfileFlags},
     id::{
-        Id,
+        AtomicId, Id,
         marker::{
             ChannelMarker, GuildMarker, MessageMarker, RoleMarker, UserMarker, WebhookMarker,
         },
@@ -34,7 +35,7 @@ pub struct CachedChannel {
     /// The icon hash of the channel (for group DMs)
     pub icon: Option<String>,
     pub id: Id<ChannelMarker>,
-    pub last_message_id: Option<Id<MessageMarker>>,
+    pub last_message_id: AtomicOnceCell<AtomicId<MessageMarker>>,
     pub last_pin_timestamp: Option<Timestamp<Iso8601>>,
     pub name: Option<String>,
     /// Custom nicknames for users in this channel (for group DMs)
@@ -74,7 +75,7 @@ impl CachedChannel {
             guild_id: self.guild_id,
             icon: self.icon,
             id: self.id,
-            last_message_id: self.last_message_id,
+            last_message_id: self.last_message_id.into_inner().map(Into::into),
             last_pin_timestamp: self.last_pin_timestamp,
             name: self.name,
             nicks: self.nicks,
@@ -101,7 +102,10 @@ impl CachedChannel {
             guild_id: value.guild_id,
             icon: value.icon,
             id: value.id,
-            last_message_id: value.last_message_id,
+            last_message_id: match value.last_message_id {
+                Some(id) => AtomicOnceCell::from(AtomicId::from(id)),
+                None => AtomicOnceCell::new(),
+            },
             last_pin_timestamp: value.last_pin_timestamp,
             name: value.name,
             nicks: value.nicks,
