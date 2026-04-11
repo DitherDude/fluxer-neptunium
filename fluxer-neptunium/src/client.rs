@@ -37,7 +37,8 @@ pub mod error;
 pub use config::*;
 
 pub(crate) enum ClientMessage {
-    Heartbeat,
+    ReceivedHeartbeatRequest,
+    ScheduledHeartbeat,
     UpdatePresence(
         PresenceUpdateOutgoing,
         oneshot::Sender<Result<(), neptunium_gateway::shard::Error>>,
@@ -77,6 +78,7 @@ pub struct Client {
     guild_members_chunk_listeners: HashMap<String, UnboundedSender<GuildMembersChunk>>,
     expecting_heartbeat_ack: bool,
     expecting_heartbeat_ack_second_chance: bool,
+    currently_resuming: bool,
 }
 
 impl Deref for Client {
@@ -88,6 +90,7 @@ impl Deref for Client {
 
 impl Client {
     pub const USER_AGENT: &str = "Fluxer-Neptunium";
+    const HEARTBEAT_SEND_TIMEOUT: Duration = Duration::from_mins(5);
 
     /// Create a new client, given a `ShardConfig` or token.
     /// # Examples
@@ -148,6 +151,7 @@ impl Client {
             guild_members_chunk_listeners: HashMap::new(),
             expecting_heartbeat_ack: false,
             expecting_heartbeat_ack_second_chance: false,
+            currently_resuming: false,
         }
     }
 
@@ -173,6 +177,15 @@ impl Client {
             // Using Box::pin to avoid potentially causing a stack overflow by having a large future
             // (clippy lint large_futures)
             let result = Box::pin(self.inner_start()).await;
+            let (tx, rx) = unbounded_channel();
+            self.tx = tx;
+            // drop old rx
+            self.rx = rx;
+            self.last_sequence_number = None;
+            self.expecting_heartbeat_ack = false;
+            self.expecting_heartbeat_ack_second_chance = false;
+            let was_currently_resuming = self.currently_resuming;
+            self.currently_resuming = false;
             let error = match result {
                 Ok(()) => {
                     tracing::debug!("Restarting client.");
@@ -180,6 +193,13 @@ impl Client {
                 }
                 Err(e) => e,
             };
+            if was_currently_resuming && let ClientErrorKind::SessionInvalidated = error.kind() {
+                tracing::debug!(
+                    "Session was not resumable. Immediately restarting client instead of waiting {} seconds.",
+                    self.auto_reconnect_wait_time.as_secs()
+                );
+                continue;
+            }
             if self.auto_reconnect {
                 if let ClientErrorKind::ConnectionClosed(close_frame) = error.kind()
                     && let Some(close_frame) = close_frame
@@ -242,7 +262,7 @@ impl Client {
                 #[expect(clippy::cast_possible_truncation)]
                 let millis = rand::random_range(0..heartbeat_interval.as_millis() as u64);
                 tokio::time::sleep(Duration::from_millis(millis)).await;
-                let _ = tx_clone.send(ClientMessage::Heartbeat);
+                let _ = tx_clone.send(ClientMessage::ScheduledHeartbeat);
             });
 
             tokio::spawn(Self::heartbeat_task(self.tx.clone(), heartbeat_interval));
@@ -265,7 +285,7 @@ impl Client {
                         return Ok(());
                     };
                     match message {
-                        ClientMessage::Heartbeat => {
+                        ClientMessage::ScheduledHeartbeat => {
                             if self.expecting_heartbeat_ack {
                                 if self.expecting_heartbeat_ack_second_chance {
                                     tracing::error!("Expected heartbeat acknowledgement but none has been received after the heartbeat interval of {} ms. Restarting.", heartbeat_interval.as_millis());
@@ -277,7 +297,7 @@ impl Client {
                                 self.expecting_heartbeat_ack_second_chance = true;
                             }
                             tracing::trace!("Sending heartbeat.");
-                            tokio::time::timeout(Duration::from_mins(5), self.shard
+                            tokio::time::timeout(Self::HEARTBEAT_SEND_TIMEOUT, self.shard
                                 .send_gateway_message(OutgoingGatewayMessage::Heartbeat(Heartbeat {
                                     last_sequence_number: self.last_sequence_number,
                                 }))).await.map_err(|_| Error::new(ClientErrorKind::TimedOut("sending heartbeat".to_owned())))??;
@@ -288,6 +308,17 @@ impl Client {
                                 // the receiving end (meaning it has concluded that no more chunks will be sent)
                                 !tx.is_closed()
                             });
+                        }
+                        ClientMessage::ReceivedHeartbeatRequest => {
+                            self.expecting_heartbeat_ack = false;
+                            self.expecting_heartbeat_ack_second_chance = false;
+                            // Already indicates that the connection is still alive since the gateway is still sending stuff to the client.
+                            tracing::trace!("expecting_heartbeat_ack and expecting_heartbeat_ack_second_chance are false now, because the gateway requested a heartbeat from us.");
+                            tracing::trace!("Sending heartbeat due to request by gateway.");
+                            tokio::time::timeout(Self::HEARTBEAT_SEND_TIMEOUT, self.shard
+                                .send_gateway_message(OutgoingGatewayMessage::Heartbeat(Heartbeat {
+                                    last_sequence_number: self.last_sequence_number,
+                                }))).await.map_err(|_| Error::new(ClientErrorKind::TimedOut("sending heartbeat".to_owned())))??;
                         }
                         ClientMessage::UpdatePresence(data, sender) => {
                             let _ = sender.send(self.shard.send_gateway_message(OutgoingGatewayMessage::PresenceUpdate(data)).await);
@@ -343,7 +374,7 @@ impl Client {
     async fn heartbeat_task(tx: UnboundedSender<ClientMessage>, heartbeat_interval: Duration) {
         loop {
             tokio::time::sleep(heartbeat_interval).await;
-            if tx.send(ClientMessage::Heartbeat).is_err() {
+            if tx.send(ClientMessage::ScheduledHeartbeat).is_err() {
                 // The message receiver has stopped, the client is likely restarting and will
                 // respawn this task later. (Either way, stop this task as it is useless when it
                 // can't send messages.)
@@ -362,10 +393,14 @@ impl Client {
     ) -> Result<ControlFlow<()>, Box<self::error::Error>> {
         match event {
             GatewayEvent::Heartbeat => {
-                let _ = self.tx.send(ClientMessage::Heartbeat);
+                let _ = self.tx.send(ClientMessage::ReceivedHeartbeatRequest);
             }
             GatewayEvent::HeartbeatAck => {
                 self.expecting_heartbeat_ack = false;
+                self.expecting_heartbeat_ack_second_chance = false;
+                tracing::trace!(
+                    "expecting_heartbeat_ack and expecting_heartbeat_ack_second_chance are false now."
+                );
             }
             GatewayEvent::Hello(hello) => {
                 tracing::warn!("Received `Hello` event more than one time. Received: {hello:?}");
@@ -412,6 +447,7 @@ impl Client {
 
     async fn resume(&mut self, resume_info: ResumeInfo) -> Result<(), Box<Error>> {
         tracing::debug!("Resuming from previous session.");
+        self.currently_resuming = true;
         self.shard
             .resume(
                 resume_info.session_id,
