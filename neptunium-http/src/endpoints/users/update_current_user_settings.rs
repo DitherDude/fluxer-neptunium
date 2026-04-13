@@ -7,8 +7,8 @@ use neptunium_model::{
         timestamp::{Timestamp, representations::Iso8601},
     },
     user::settings::{
-        FriendSourceFlags, GroupDmAddPermissionFlags, GuildFoldersItem, IncomingCallFlags, Locale,
-        RenderSpoilers, StickerAnimationOptions, TimeFormatTypes, UserSettings,
+        FriendSourceFlags, GroupDmAddPermissionFlags, GuildFoldersItem, IncomingCallFlags,
+        LanguageTag, RenderSpoilers, StickerAnimationOptions, TimeFormatTypes, UserSettings,
     },
 };
 use reqwest::Method;
@@ -51,7 +51,7 @@ pub struct UpdateUserSettings {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub inline_embed_media: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub locale: Option<Locale>,
+    pub locale: Option<LanguageTag>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub message_display_compact: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
