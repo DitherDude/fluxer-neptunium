@@ -15,7 +15,7 @@ use neptunium_model::gateway::{
         incoming::GuildMembersChunk,
         outgoing::{
             ConnectionProperties, Heartbeat, LazyRequest, OutgoingGatewayMessage,
-            PresenceUpdateOutgoing, RequestGuildMembers,
+            PresenceUpdateOutgoing, RequestGuildMembers, UpdatePresence,
         },
     },
 };
@@ -29,6 +29,7 @@ use tokio::{
 use zeroize::Zeroizing;
 
 use crate::{
+    LIBRARY_NAME,
     client::error::{ClientErrorKind, Error},
     events::{EventError, EventHandler, context::Context},
 };
@@ -82,6 +83,8 @@ pub struct Client {
     expecting_heartbeat_ack_second_chance: bool,
     currently_resuming: bool,
     connection_process_timeout: Duration,
+    identify_presence: Option<UpdatePresence>,
+    send_identify_presence_on_reconnect: bool,
 }
 
 impl Deref for Client {
@@ -156,6 +159,9 @@ impl Client {
             expecting_heartbeat_ack_second_chance: false,
             currently_resuming: false,
             connection_process_timeout: client_config.connection_process_timeout,
+            identify_presence: client_config.initial_presence,
+            send_identify_presence_on_reconnect: client_config
+                .send_initial_presence_on_every_reconnect,
         }
     }
 
@@ -177,10 +183,12 @@ impl Client {
     /// # Errors
     /// Returns an error if unexpected data is received, or if a network error occurs.
     pub async fn start(&mut self) -> Result<(), self::error::Error> {
+        let mut is_reconnect = false;
         loop {
             // Using Box::pin to avoid potentially causing a stack overflow by having a large future
             // (clippy lint large_futures)
-            let result = Box::pin(self.inner_start()).await;
+            let result = Box::pin(self.inner_start(is_reconnect)).await;
+            is_reconnect = true;
             let (tx, rx) = unbounded_channel();
             self.tx = tx;
             // drop old rx
@@ -224,17 +232,17 @@ impl Client {
                 tokio::time::sleep(self.auto_reconnect_wait_time).await;
                 continue;
             }
-            tracing::debug!("Client error occured and auto-reconnect is disabled. Returning.");
+            tracing::debug!("Client error occured and auto-reconnect is disabled. Exiting.");
             break Err(error);
         }
     }
 
     #[expect(clippy::too_many_lines)]
-    async fn inner_start(&mut self) -> Result<(), self::error::Error> {
+    async fn inner_start(&mut self, is_reconnect: bool) -> Result<(), self::error::Error> {
         tracing::debug!("Starting client...");
         let heartbeat_interval =
             // Box::pin to prevent large future on the stack
-            match Box::pin(timeout(self.connection_process_timeout, self.connect())).await {
+            match Box::pin(timeout(self.connection_process_timeout, self.connect(is_reconnect))).await {
                 Ok(Ok(Ok(heartbeat_interval))) => heartbeat_interval,
                 Ok(Ok(Err(()))) => {
                     tracing::debug!("Connection process triggered reconnect.");
@@ -348,7 +356,7 @@ impl Client {
 
     /// Returns `Ok(Ok(...))` if connecting was successful, `Ok(Err(()))` if the client should restart,
     /// and `Err(...)` if an error occurred.
-    async fn connect(&mut self) -> Result<Result<Duration, ()>, Error> {
+    async fn connect(&mut self, is_reconnect: bool) -> Result<Result<Duration, ()>, Error> {
         Ok(Ok(if let Some(resume_info) = self.resume_info.clone() {
             tracing::debug!("Waiting for `Hello` event from gateway.");
             let hello_event = match self.shard.next_event().await? {
@@ -426,11 +434,18 @@ impl Client {
             tokio::spawn(Self::heartbeat_task(self.tx.clone(), heartbeat_interval));
 
             self.shard
-                .identify(ConnectionProperties {
-                    os: String::from(std::env::consts::OS),
-                    browser: String::from("fluxer-neptunium"),
-                    device: String::from("fluxer-neptunium"),
-                })
+                .identify(
+                    ConnectionProperties {
+                        os: String::from(std::env::consts::OS),
+                        browser: String::from(LIBRARY_NAME),
+                        device: String::from(LIBRARY_NAME),
+                    },
+                    if is_reconnect && !self.send_identify_presence_on_reconnect {
+                        None
+                    } else {
+                        self.identify_presence.clone()
+                    },
+                )
                 .await?;
             heartbeat_interval
         }))

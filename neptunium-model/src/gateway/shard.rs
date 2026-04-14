@@ -1,6 +1,7 @@
+use bon::Builder;
 use serde::{Deserialize, Serialize};
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Builder)]
 pub struct ShardInfo {
     pub id: u64,
     pub num_shards: u64,

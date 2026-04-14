@@ -37,8 +37,9 @@ pub use neptunium_http as http;
 pub use neptunium_model as model;
 
 const VERSION: &str = unwrap_or(option_env!("CARGO_PKG_VERSION"), "unknown");
+const LIBRARY_NAME: &str = "fluxer-neptunium";
 
-/// Custom `unwrap_or` implementation because the one from the standard library is not yet stable.
+/// Custom `unwrap_or` const implementation because the one from the standard library is not yet stable.
 const fn unwrap_or(option: Option<&'static str>, default: &'static str) -> &'static str {
     if let Some(value) = option {
         value

@@ -4,7 +4,9 @@ use futures_util::{
 };
 use neptunium_model::gateway::{
     event::gateway::GatewayEvent,
-    payload::outgoing::{ConnectionProperties, Identify, OutgoingGatewayMessage, Resume},
+    payload::outgoing::{
+        ConnectionProperties, Identify, OutgoingGatewayMessage, Resume, UpdatePresence,
+    },
 };
 use tokio::{net::TcpStream, time::timeout};
 use tokio_tungstenite::{
@@ -179,12 +181,13 @@ impl Shard {
     pub async fn identify(
         &mut self,
         connection_properties: ConnectionProperties,
+        presence: Option<UpdatePresence>,
     ) -> Result<(), Error> {
         self.send_gateway_message(OutgoingGatewayMessage::Identify(Identify {
             token: self.config.token.clone(),
             properties: connection_properties,
             shard: Some(self.config.shard_info),
-            presence: None,
+            presence,
             ignored_events: self.config.ignored_events,
         }))
         .await

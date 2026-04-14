@@ -183,28 +183,34 @@ pub struct Activity {
     pub buttons: Option<Vec<ActivityButton>>,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Debug, Clone)]
+#[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Builder)]
 pub struct UpdatePresence {
     /// Time when the client went idle, or `None` if the client is not idle
     pub since: Option<u64>,
-    pub activities: Vec<Activity>,
+    // pub activities: Vec<Activity>,
+    #[builder(into)]
     pub status: String,
+    #[builder(default = false)]
     pub afk: bool,
 }
 
 // TODO: This has more (optional) fields when logging in as a user
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(serde::Serialize, Clone, Debug, Builder)]
 pub struct ConnectionProperties {
     /// The operating system, e.g. "linux".
+    #[builder(into)]
     pub os: String,
     /// The library name.
+    #[builder(into)]
     pub browser: String,
     /// The library name.
+    #[builder(into)]
     pub device: String,
 }
 
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug)]
+#[derive(serde::Serialize, Clone, Debug, Builder)]
 pub struct Identify {
+    #[builder(into)]
     pub token: Zeroizing<String>,
     pub properties: ConnectionProperties,
     // Doesn't appear to exist - https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/fluxer_gateway/src/gateway/gateway_handler.erl#L466
