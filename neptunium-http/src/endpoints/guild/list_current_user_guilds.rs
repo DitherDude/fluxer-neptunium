@@ -16,7 +16,7 @@ pub struct ListCurrentUserGuildsParams {
     pub before: Option<Id<GuildMarker>>,
     pub after: Option<Id<GuildMarker>>,
     /// 1-200.
-    pub limit: Option<u64>,
+    pub limit: Option<usize>,
     /// Include approximate member and presence counts.
     pub with_counts: Option<bool>,
 }

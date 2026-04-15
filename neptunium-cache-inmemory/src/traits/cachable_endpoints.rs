@@ -1,12 +1,13 @@
-use std::sync::Arc;
+use std::sync::{Arc, atomic::Ordering};
 
 #[cfg(feature = "user_api")]
 use std::collections::HashMap;
 
+use mini_moka::sync::ConcurrentCacheExt;
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::{
     channel::PreloadMessagesForChannels,
-    guild::{DeleteGuild, TransferGuildOwnership},
+    guild::{CreateGuild, DeleteGuild, TransferGuildOwnership},
     users::{
         GetUserSettings, ListCurrentUserMentions, UpdateCurrentUserProfile, UpdateUserSettings,
     },
@@ -31,10 +32,11 @@ use neptunium_http::{
         },
         guild::{
             CreateGuildChannel, CreateGuildRole, DeleteGuildRole, GetGuildInformation, LeaveGuild,
-            ListGuildChannels, ListGuildMembers, ListGuildRoles, ToggleDetachedBanner,
-            ToggleGuildTextChannelFlexibleNames, UpdateGuildRole, UpdateGuildRoleHoistPositions,
-            UpdateGuildRoleHoistPositionsEntry, UpdateGuildRolePositions,
-            UpdateGuildRolePositionsEntry, UpdateGuildVanityUrl, UpdateGuildVanityUrlResponse,
+            ListCurrentUserGuilds, ListGuildChannels, ListGuildMembers, ListGuildRoles,
+            ToggleDetachedBanner, ToggleGuildTextChannelFlexibleNames, UpdateGuildRole,
+            UpdateGuildRoleHoistPositions, UpdateGuildRoleHoistPositionsEntry,
+            UpdateGuildRolePositions, UpdateGuildRolePositionsEntry, UpdateGuildVanityUrl,
+            UpdateGuildVanityUrlResponse,
         },
         invites::{CreateChannelInvite, ListChannelInvites, ListGuildInvites},
         users::{GetCurrentUserProfile, GetUserById, GetUserProfile},
@@ -53,6 +55,8 @@ use crate::{
     CachableEndpoint, Cache, Cached, CachedChannel, CachedGuildMember, CachedMessage,
     CachedUserProfileFullResponse, gateway::cached_payload::cache_vec, traits::CacheValue,
 };
+
+pub const USER_MAX_GUILDS: usize = 200;
 
 #[async_trait]
 impl CachableEndpoint for GetUserById {
@@ -860,5 +864,53 @@ impl CachableEndpoint for ListGuildMembers {
             })
             .collect::<Vec<_>>();
         Ok(cache_vec!(res, cache))
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for ListCurrentUserGuilds {
+    type Response = Vec<Cached<Guild>>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        if cache.guild_list_is_complete.load(Ordering::Acquire) {
+            return Ok(cache
+                .guilds
+                .iter()
+                .map(|entry_ref| entry_ref.value().clone())
+                .collect());
+        }
+        let is_max_amount = self
+            .params
+            .limit
+            .is_some_and(|value| value == USER_MAX_GUILDS);
+        let res = client.execute(self).await?;
+        let cached = res
+            .into_iter()
+            .map(|guild| guild.insert_and_return(cache))
+            .collect::<Vec<Cached<Guild>>>();
+        if is_max_amount || {
+            cache.guilds.sync();
+            cache.guilds.entry_count() == USER_MAX_GUILDS as u64
+        } {
+            cache.guild_list_is_complete.store(true, Ordering::Release);
+        }
+        Ok(cached)
+    }
+}
+
+#[cfg(feature = "user_api")]
+#[async_trait]
+impl CachableEndpoint for CreateGuild {
+    type Response = Cached<Guild>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let res = client.execute(self).await?;
+        Ok(res.insert_and_return(cache))
     }
 }

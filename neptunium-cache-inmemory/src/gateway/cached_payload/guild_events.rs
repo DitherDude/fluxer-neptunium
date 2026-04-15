@@ -1,5 +1,9 @@
 use neptunium_model::{
-    gateway::{payload::incoming::GuildCreate, presence::Presence, voice_state::VoiceState},
+    gateway::{
+        payload::incoming::{GuildCreate, GuildDelete},
+        presence::Presence,
+        voice_state::VoiceState,
+    },
     guild::{
         Guild,
         member::GuildMember,
@@ -45,5 +49,13 @@ impl CachedPayload for CachedGuildCreate {
             voice_states: non_cached.voice_states,
             joined_at: non_cached.joined_at,
         }
+    }
+}
+
+impl CachedPayload for GuildDelete {
+    type NonCached = Self;
+    fn cache_payload(non_cached: Self::NonCached, cache: &std::sync::Arc<crate::Cache>) -> Self {
+        cache.guilds.invalidate(&non_cached.id);
+        non_cached
     }
 }

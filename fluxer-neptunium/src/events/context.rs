@@ -216,15 +216,13 @@ impl Context {
         Ok(self.http_client.execute(GetGatewayInformation).await?)
     }
 
-    pub async fn list_own_guilds(&self) -> Result<Vec<Guild>, Error> {
-        Ok(self
-            .http_client
-            .execute(
-                ListCurrentUserGuilds::builder()
-                    .params(ListCurrentUserGuildsParams::builder().build())
-                    .build(),
-            )
-            .await?)
+    /// List all of the current user guilds (up to 200).
+    pub async fn list_own_guilds(&self) -> Result<Vec<Cached<Guild>>, Error> {
+        Ok(ListCurrentUserGuilds {
+            params: ListCurrentUserGuildsParams::builder().limit(200).build(),
+        }
+        .execute_cached(&self.http_client, &self.cache)
+        .await?)
     }
 
     pub async fn list_own_guilds_with_params(

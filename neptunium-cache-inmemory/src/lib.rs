@@ -1,4 +1,7 @@
-use std::{fmt::Debug, sync::Arc};
+use std::{
+    fmt::Debug,
+    sync::{Arc, atomic::AtomicBool},
+};
 
 use arc_swap::ArcSwap;
 use atomic_once_cell::AtomicOnceCell;
@@ -30,6 +33,53 @@ pub use arc_swap::Guard;
 
 pub struct Cached<T> {
     inner: Arc<ArcSwap<T>>,
+}
+
+// TODO: More things to cache: guild channels (guild id->channels), relationships,
+// guild invites (guild id->invites)
+#[expect(clippy::type_complexity)]
+pub struct Cache {
+    pub users: MokaCache<Id<UserMarker>, Cached<PartialUser>>,
+    pub guild_members: MokaCache<Id<GuildMarker>, Cached<Vec<Cached<CachedGuildMember>>>>,
+    pub user_profile_data: MokaCache<Id<UserMarker>, Cached<UserProfileData>>,
+    pub guild_member_profiles:
+        MokaCache<(Id<UserMarker>, Id<GuildMarker>), Cached<GuildMemberProfile>>,
+    pub user_profiles:
+        MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<CachedUserProfileFullResponse>>,
+    pub channels: MokaCache<Id<ChannelMarker>, Cached<CachedChannel>>,
+    pub messages: MokaCache<Id<MessageMarker>, Cached<CachedMessage>>,
+    pub current_user: AtomicOnceCell<Cached<UserPrivateResponse>>,
+    pub current_user_settings: AtomicOnceCell<Cached<UserSettings>>,
+    pub invites: MokaCache<String, Cached<InviteWithMetadata>>,
+    pub guilds: MokaCache<Id<GuildMarker>, Cached<Guild>>,
+    /// `true` if the cached `guilds` are a complete list of all user guilds.
+    pub guild_list_is_complete: AtomicBool,
+    // TODO: Attach guild id
+    pub roles: MokaCache<Id<RoleMarker>, Cached<GuildRole>>,
+}
+
+#[derive(Builder, Copy, Clone, Debug)]
+pub struct CacheConfig {
+    #[builder(default = u64::MAX)]
+    pub users: u64,
+    #[builder(default = u64::MAX)]
+    pub user_profiles: u64,
+    #[builder(default = u64::MAX)]
+    pub channels: u64,
+    #[builder(default = 4096)]
+    pub messages: u64,
+    #[builder(default = 4096)]
+    pub invites: u64,
+    #[builder(default = u64::MAX)]
+    pub guilds: u64,
+    #[builder(default = u64::MAX)]
+    pub roles: u64,
+    #[builder(default = u64::MAX)]
+    pub guild_members: u64,
+    #[builder(default = 8192)]
+    pub user_profile_data: u64,
+    #[builder(default = 8192)]
+    pub guild_member_profiles: u64,
 }
 
 impl<T> Cached<T> {
@@ -110,51 +160,6 @@ impl<T> Clone for Cached<T> {
     }
 }
 
-// TODO: More things to cache: guild channels (guild id->channels), relationships,
-// guild invites (guild id->invites), guild members
-#[expect(clippy::type_complexity)]
-pub struct Cache {
-    pub users: MokaCache<Id<UserMarker>, Cached<PartialUser>>,
-    pub guild_members: MokaCache<Id<GuildMarker>, Cached<Vec<Cached<CachedGuildMember>>>>,
-    pub user_profile_data: MokaCache<Id<UserMarker>, Cached<UserProfileData>>,
-    pub guild_member_profiles:
-        MokaCache<(Id<UserMarker>, Id<GuildMarker>), Cached<GuildMemberProfile>>,
-    pub user_profiles:
-        MokaCache<(Id<UserMarker>, Option<Id<GuildMarker>>), Cached<CachedUserProfileFullResponse>>,
-    pub channels: MokaCache<Id<ChannelMarker>, Cached<CachedChannel>>,
-    pub messages: MokaCache<Id<MessageMarker>, Cached<CachedMessage>>,
-    pub current_user: AtomicOnceCell<Cached<UserPrivateResponse>>,
-    pub current_user_settings: AtomicOnceCell<Cached<UserSettings>>,
-    pub invites: MokaCache<String, Cached<InviteWithMetadata>>,
-    pub guilds: MokaCache<Id<GuildMarker>, Cached<Guild>>,
-    // TODO: Attach guild id
-    pub roles: MokaCache<Id<RoleMarker>, Cached<GuildRole>>,
-}
-
-#[derive(Builder, Copy, Clone, Debug)]
-pub struct CacheConfig {
-    #[builder(default = u64::MAX)]
-    pub users: u64,
-    #[builder(default = u64::MAX)]
-    pub user_profiles: u64,
-    #[builder(default = u64::MAX)]
-    pub channels: u64,
-    #[builder(default = 4096)]
-    pub messages: u64,
-    #[builder(default = 4096)]
-    pub invites: u64,
-    #[builder(default = u64::MAX)]
-    pub guilds: u64,
-    #[builder(default = u64::MAX)]
-    pub roles: u64,
-    #[builder(default = u64::MAX)]
-    pub guild_members: u64,
-    #[builder(default = 8192)]
-    pub user_profile_data: u64,
-    #[builder(default = 8192)]
-    pub guild_member_profiles: u64,
-}
-
 impl Default for CacheConfig {
     fn default() -> Self {
         Self::builder().build()
@@ -177,6 +182,7 @@ impl Cache {
             guild_member_profiles: MokaCache::new(config.guild_member_profiles),
             guild_members: MokaCache::new(config.guild_members),
             user_profile_data: MokaCache::new(config.user_profile_data),
+            guild_list_is_complete: AtomicBool::new(false),
         }
     }
 

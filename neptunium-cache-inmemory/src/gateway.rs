@@ -92,7 +92,9 @@ impl CachedDispatchEvent {
             DispatchEvent::GuildSync(payload) => {
                 CachedDispatchEvent::GuildSync(CachedGuildCreate::cache_payload(payload, cache))
             }
-            DispatchEvent::GuildDelete(payload) => CachedDispatchEvent::GuildDelete(payload),
+            DispatchEvent::GuildDelete(payload) => {
+                CachedDispatchEvent::GuildDelete(GuildDelete::cache_payload(payload, cache))
+            }
             DispatchEvent::GuildMemberAdd(payload) => CachedDispatchEvent::GuildMemberAdd(payload),
             DispatchEvent::GuildMemberUpdate(payload) => {
                 CachedDispatchEvent::GuildMemberUpdate(payload)

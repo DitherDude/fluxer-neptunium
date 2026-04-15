@@ -1,4 +1,4 @@
-mod guild_create;
+mod guild_events;
 mod guild_member_list_update;
 mod guild_role_payloads;
 mod message_events;
@@ -6,7 +6,7 @@ mod ready;
 
 use std::sync::Arc;
 
-pub use guild_create::*;
+pub use guild_events::*;
 pub use guild_member_list_update::*;
 pub use guild_role_payloads::*;
 pub use message_events::*;
