@@ -110,6 +110,12 @@ pub struct InstanceDiscoveryDocumentAppPublic {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct InstanceDiscoveryDocumentGateway {
+    pub session_retry_min_ms: u64,
+    pub session_retry_max_ms: u64,
+    pub session_retry_jitter_ms: u64,
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InstanceDiscoveryDocumentFederationConfig {
     pub enabled: bool,
     /// Federation protocol version.
@@ -148,6 +154,9 @@ pub struct InstanceDiscoveryDocumentResponse {
     pub sso: InstanceDiscoveryDocumentSSOConfiguration,
     pub push: InstanceDiscoveryDocumentPushNotificationConfig,
     pub app_public: InstanceDiscoveryDocumentAppPublic,
+    /// Undocumented
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<InstanceDiscoveryDocumentGateway>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub federation: Option<InstanceDiscoveryDocumentFederationConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
