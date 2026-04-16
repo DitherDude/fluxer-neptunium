@@ -71,13 +71,9 @@ This is the current support for different APIs (Categories named after [The offi
 So, basically, while trying to cover parts of the API, I am sometimes discovering not yet documented features. Most of them are just not *documented*, but actually do exist in the fluxer code, which is fine. But, some others, like the GUILD_AUDIT_LOG_ENTRY_CREATE (related structs in `model/src/guild/audit_log`) dispatch event are not even in the fluxer codebase yet and instead only in the private `fluxer-v2` repository which is only available to Fluxer visionaries. I'm sadly not a visionary, so I don't fully know the structure of this event. I'm still including it for the future, but you shouldn't rely on it currently.
 
 # Third party code
-I have copied code in the following files from project `twilight` (https://github.com/twilight-rs/twilight):
-- [model/src/guild/audit_log.rs](./model/src/guild/audit_log.rs)
-- [model/src/guild/audit_log/*](./model/src/guild/audit_log) (Some code in that directory)
+I have copied certain audit log schemas from twilight-rs, along with using `twilight-http-ratelimiting` for the rate limiting.
 
 Copyright (c) 2019 (c) The Twilight Contributors. See [THIRD_PARTY_LICENSES](./THIRD_PARTY_LICENSES) for the full license text.
-
-Note that I have taken some of the structure and ideas (like IDs with markers) from twilight too. You may find some very similar code or structs, which might either be because both twilight and these crates work with an almost identical API or it might be because I have — knowingly or unknowingly — used parts of the twilight code. The list of files are just a list of when I explicitly used their code instead of writing my own.
 
 # License
 
