@@ -1,6 +1,10 @@
 use std::string::FromUtf8Error;
 
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+use reqwest::Response;
 use serde::de::DeserializeOwned;
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+use twilight_http_ratelimiting::RateLimitHeaders;
 
 use crate::{
     error::{ApiErrorResponse, ApiRateLimitedResponse},
@@ -106,4 +110,81 @@ impl From<serde_path_to_error::Error<serde_json::Error>> for ExecuteEndpointRequ
     fn from(value: serde_path_to_error::Error<serde_json::Error>) -> Self {
         Self::DeserializationError(value)
     }
+}
+
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+pub(crate) trait MethodExt {
+    fn into_rate_limiter_method(self) -> Option<twilight_http_ratelimiting::Method>;
+}
+
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+impl MethodExt for reqwest::Method {
+    fn into_rate_limiter_method(self) -> Option<twilight_http_ratelimiting::Method> {
+        use reqwest::Method as ReqwestMethod;
+        use twilight_http_ratelimiting::Method as TwilightMethod;
+        Some(match self {
+            ReqwestMethod::GET => TwilightMethod::Get,
+            ReqwestMethod::POST => TwilightMethod::Post,
+            ReqwestMethod::PUT => TwilightMethod::Put,
+            ReqwestMethod::PATCH => TwilightMethod::Patch,
+            ReqwestMethod::DELETE => TwilightMethod::Delete,
+            _ => return None,
+        })
+    }
+}
+
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+pub(crate) trait RateLimitHeadersExt: Sized {
+    fn from_response(res: &Response) -> Option<Self>;
+}
+
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+impl RateLimitHeadersExt for RateLimitHeaders {
+    fn from_response(res: &Response) -> Option<Self> {
+        let headers = res.headers();
+        Some(RateLimitHeaders {
+            bucket: headers
+                .get("X-RateLimit-Bucket")?
+                .to_str()
+                .map_or(None, |value| Some(parse_bucket(value)))??,
+            limit: headers
+                .get("X-RateLimit-Limit")?
+                .to_str()
+                .ok()?
+                .parse::<u16>()
+                .ok()?,
+            remaining: headers
+                .get("X-RateLimit-Remaining")?
+                .to_str()
+                .ok()?
+                .parse::<u16>()
+                .ok()?,
+            reset_at: {
+                use std::time::{Duration, Instant};
+                let reset_after = headers
+                    .get("X-RateLimit-Reset-After")?
+                    .to_str()
+                    .ok()?
+                    .parse::<f64>()
+                    .ok()?;
+                Instant::now() + Duration::from_secs_f64(reset_after)
+            },
+        })
+    }
+}
+
+#[cfg(all(feature = "rate-limiting", not(debug_assertions)))]
+fn parse_bucket(s: &str) -> Option<Vec<u8>> {
+    if !s.len().is_multiple_of(2) {
+        return None;
+    }
+    let mut vec = Vec::with_capacity(8);
+    let mut chars = s.chars();
+    for _ in 0..(s.len() / 2) {
+        let chars_string = [chars.next()?, chars.next()?]
+            .into_iter()
+            .collect::<String>();
+        vec.push(u8::from_str_radix(&chars_string, 16).ok()?);
+    }
+    Some(vec)
 }

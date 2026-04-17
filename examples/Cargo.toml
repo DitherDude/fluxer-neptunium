@@ -6,7 +6,7 @@ publish = false
 version = "0.0.0"
 
 [dev-dependencies]
-tokio = { version = "1.52.1", features = ["rt-multi-thread"] }
+tokio = { version = "1.52.1", features = ["full"] }
 fluxer-neptunium = { path = "../fluxer-neptunium", version = "0.5.7", features = ["user_api"] }
 tracing-subscriber = "0.3.23"
 
@@ -17,3 +17,7 @@ path = "replying_to_ping.rs"
 [[example]]
 name = "user-bot"
 path = "user_bot.rs"
+
+[[example]]
+name = "test-rate-limiting"
+path = "test_rate_limiting.rs"

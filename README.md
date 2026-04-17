@@ -21,6 +21,8 @@ Run an example using `FLUXER_TOKEN="<token>" cargo run --example <example>`, rep
 
 To run the `user-bot` example, you need to specify `FLUXER_USER_TOKEN` instead.
 
+**NOTE:** `rest-rate-limiting` must be run with `--release` currently
+
 # Coverage
 Note that many of the APIs are user-only, so not interesting for bots. While this crate aims to support everything in the API eventually, it is mainly intended to be used for bots, which is why the bot-usable APIs are prioritized.
 - **Gateway:**
@@ -28,8 +30,6 @@ Note that many of the APIs are user-only, so not interesting for bots. While thi
   - **User Gateway:** 100% (afaik)
 - **HTTP API:**
   - **Bot-relevant API:** 100%
-    - Currently working on caching
-    - Rate limit support is not yet implemented
   - **User-bot-relevant API:** >50% (probably)
 
 This is the current support for different APIs (Categories named after [The official Fluxer API documentation sections](https://docs.fluxer.app/api-reference/instance/get-instance-discovery-document)):
