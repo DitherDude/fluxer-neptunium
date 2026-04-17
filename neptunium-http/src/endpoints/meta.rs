@@ -1,3 +1,4 @@
+use neptunium_model::time::duration::{Duration, Millis};
 use reqwest::Method;
 use serde::{Deserialize, Serialize};
 
@@ -110,6 +111,15 @@ pub struct InstanceDiscoveryDocumentAppPublic {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct InstanceDiscoveryDocumentGateway {
+    #[serde(rename = "session_retry_min_ms")]
+    pub session_retry_minimum: Duration<Millis>,
+    #[serde(rename = "session_retry_max_ms")]
+    pub session_retry_maximum: Duration<Millis>,
+    #[serde(rename = "session_retry_jitter_ms")]
+    pub session_retry_jitter: Duration<Millis>,
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InstanceDiscoveryDocumentFederationConfig {
     pub enabled: bool,
     /// Federation protocol version.
@@ -148,6 +158,9 @@ pub struct InstanceDiscoveryDocumentResponse {
     pub sso: InstanceDiscoveryDocumentSSOConfiguration,
     pub push: InstanceDiscoveryDocumentPushNotificationConfig,
     pub app_public: InstanceDiscoveryDocumentAppPublic,
+    /// Undocumented
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gateway: Option<InstanceDiscoveryDocumentGateway>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub federation: Option<InstanceDiscoveryDocumentFederationConfig>,
     #[serde(skip_serializing_if = "Option::is_none")]
