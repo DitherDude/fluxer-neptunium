@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[cfg(feature = "user_api")]
 use neptunium_cache_inmemory::CachedMessage;
@@ -63,6 +64,7 @@ use tokio::sync::{
     mpsc::{UnboundedSender, unbounded_channel},
     oneshot,
 };
+use tokio::time::Instant;
 
 use crate::{
     client::{
@@ -85,6 +87,19 @@ impl Context {
     #[must_use]
     pub fn get_http_client(&self) -> &Arc<HttpClient> {
         &self.http_client
+    }
+
+    /// Measure the gateway latency by sending a heartbeat and waiting for the response, with
+    /// millisecond precision.
+    /// Returns `None` if the client has exited or the measurement timed out.
+    #[must_use]
+    pub async fn measure_gateway_latency(&self, max_wait_time: Duration) -> Option<Duration> {
+        let (tx, rx) = oneshot::channel();
+        let start_time = Instant::now();
+        self.tx.send(ClientMessage::LatencyMeasurement(tx)).ok()?;
+        tokio::time::timeout(max_wait_time, rx).await.ok()?.ok()?;
+        let end_time = Instant::now();
+        Some(end_time - start_time)
     }
 
     /// Update the presence by sending a gateway request. Due to

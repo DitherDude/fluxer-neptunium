@@ -57,6 +57,7 @@ pub(crate) enum ClientMessage {
         UnboundedSender<Result<(), neptunium_gateway::shard::Error>>,
     ),
     PropagateEventError(EventError),
+    LatencyMeasurement(oneshot::Sender<()>),
 }
 
 #[derive(Clone, Debug)]
@@ -85,6 +86,7 @@ pub struct Client {
     identify_presence: Option<PresenceUpdateOutgoing>,
     send_identify_presence_on_reconnect: bool,
     gateway_retry_wait_time_fn: Box<dyn Fn(usize) -> Duration>,
+    latency_measurements: Vec<oneshot::Sender<()>>,
 }
 
 impl Deref for Client {
@@ -162,6 +164,7 @@ impl Client {
             send_identify_presence_on_reconnect: client_config
                 .send_initial_presence_on_every_reconnect,
             gateway_retry_wait_time_fn: client_config.gateway_retry_wait_time_fn,
+            latency_measurements: Vec::new(),
         }
     }
 
@@ -335,6 +338,10 @@ impl Client {
                             }
                             let _ = sender.send(self.shard.send_gateway_message(OutgoingGatewayMessage::RequestGuildMembers(data)).await);
                         }
+                        ClientMessage::LatencyMeasurement(tx) => {
+                            self.latency_measurements.push(tx);
+                            self.shard.send_gateway_message(OutgoingGatewayMessage::Heartbeat(Heartbeat { last_sequence_number: self.last_sequence_number })).await?;
+                        }
                     }
                 },
                 message = self.shard.next_event() => {
@@ -488,6 +495,10 @@ impl Client {
                 let _ = self.tx.send(ClientMessage::ReceivedHeartbeatRequest);
             }
             GatewayEvent::HeartbeatAck => {
+                // Complete all pending latency measurements
+                self.latency_measurements.drain(..).for_each(|tx| {
+                    let _ = tx.send(());
+                });
                 self.expecting_heartbeat_ack = false;
                 self.expecting_heartbeat_ack_second_chance = false;
                 tracing::trace!(

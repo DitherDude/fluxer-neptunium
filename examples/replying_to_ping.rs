@@ -1,8 +1,15 @@
-use std::{env, sync::Arc};
+use std::{
+    env,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 use fluxer_neptunium::{
     cached_payload::CachedMessageCreate,
-    model::gateway::{payload::outgoing::PresenceUpdateOutgoing, presence::CustomStatus},
+    model::{
+        gateway::{payload::outgoing::PresenceUpdateOutgoing, presence::CustomStatus},
+        time::OffsetDateTime,
+    },
     prelude::*,
 };
 use tracing_subscriber::filter::LevelFilter;
@@ -16,10 +23,22 @@ impl EventHandler for Handler {
         ctx: Context,
         event: Arc<CachedMessageCreate>,
     ) -> Result<(), EventError> {
+        let now = SystemTime::now();
         let message = event.message.load();
         let author = message.author.load();
+        let message_latency = now
+            .duration_since(SystemTime::from(OffsetDateTime::from(message.timestamp)))
+            .map_or("<error>".to_owned(), |duration| {
+                duration.as_millis().to_string()
+            });
+        let gateway_latency = ctx
+            .measure_gateway_latency(Duration::from_secs(10))
+            .await
+            .map_or("<timed out>".to_owned(), |duration| {
+                duration.as_millis().to_string()
+            });
         if !author.bot && message.content == "n?ping" {
-            message.reply(&ctx, "Pong!").await?;
+            message.reply(&ctx, format!("Pong! API latency: {message_latency} ms, Gateway latency: {gateway_latency} ms")).await?;
         }
 
         Ok(())
