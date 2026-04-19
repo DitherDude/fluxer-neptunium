@@ -212,7 +212,11 @@ impl GuildMemberExt for CachedGuildMember {
             .collect::<HashMap<_, _>>();
         for role_id in &self.roles {
             let Some(role) = roles.get(role_id) else {
-                tracing::warn!("User has role {role_id} but it was not found in the guild.");
+                tracing::warn!(
+                    "User has role {} but it was not found in the guild {}.",
+                    role_id,
+                    self.guild_id
+                );
                 continue;
             };
             role_permissions.push(role.permissions);
