@@ -16,7 +16,7 @@ use crate::{
 
 pub mod message;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum VoiceRegion {
     Automatic,
     Fixed(String),
@@ -56,7 +56,7 @@ pub struct ChannelPartialRecipient {
     pub username: String,
 }
 
-#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum PermissionOverwriteEntity {
     Role = 0,
@@ -75,7 +75,7 @@ pub struct PermissionOverwrite {
 }
 
 // https://github.com/fluxerapp/fluxer/blob/03813bbe17db008452f0f1be3090a7d2970a5447/packages/constants/src/ChannelConstants.tsx#L22
-#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
+#[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug, PartialEq, Eq)]
 #[repr(u16)]
 pub enum ChannelType {
     GuildText = 0,
@@ -147,4 +147,16 @@ pub struct ChannelPartial {
     // TODO: figure out what this number means (its the type of the channel)
     #[serde(rename = "type")]
     pub r#type: i32,
+}
+
+impl From<&Channel> for Id<ChannelMarker> {
+    fn from(value: &Channel) -> Self {
+        value.id
+    }
+}
+
+impl From<&ChannelPartial> for Id<ChannelMarker> {
+    fn from(value: &ChannelPartial) -> Self {
+        value.id
+    }
 }

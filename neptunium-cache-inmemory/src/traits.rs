@@ -144,30 +144,30 @@ impl CacheValue<UserProfileData> for (Id<UserMarker>, UserProfileData) {
     }
 }
 
-impl CacheValue<CachedGuildMember> for (Id<GuildMarker>, CachedGuildMember) {
+impl CacheValue<CachedGuildMember> for CachedGuildMember {
     fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<CachedGuildMember> {
-        let cached_member = self.1;
-        if let Some(existing_members) = cache.guild_members.get(&self.0) {
+        if let Some(existing_members) = cache.guild_members.get(&self.guild_id) {
             existing_members.modify(|members| {
-                let cached_member_id = cached_member.user.load().id;
+                let cached_member_id = self.user.load().id;
                 if let Some(existing_member) = members
                     .iter()
                     .find(|member| member.load().user.load().id == cached_member_id)
                 {
-                    let arc_member = Arc::new(cached_member);
+                    let arc_member = Arc::new(self);
                     existing_member.store(Arc::clone(&arc_member));
                     existing_member.clone()
                 } else {
-                    let cached = Cached::new(cached_member);
+                    let cached = Cached::new(self);
                     members.push(cached.clone());
                     cached
                 }
             })
         } else {
-            let cached = Cached::new(cached_member);
+            let guild_id = self.guild_id;
+            let cached = Cached::new(self);
             cache
                 .guild_members
-                .insert(self.0, Cached::new(vec![cached.clone()]));
+                .insert(guild_id, Cached::new(vec![cached.clone()]));
             cached
         }
     }

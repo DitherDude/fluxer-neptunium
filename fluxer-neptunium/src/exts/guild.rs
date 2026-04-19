@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel};
+use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel, CachedGuildMember};
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::users::{UpdateUserGuildSettings, UpdateUserGuildSettingsBody};
 use neptunium_http::endpoints::{
@@ -25,8 +25,8 @@ use neptunium_http::endpoints::{
 use neptunium_model::user::{auth::SudoVerification, settings::UserGuildSettings};
 use neptunium_model::{
     guild::{
-        Guild, audit_log::GuildAuditLogs, bans::GuildBanListEntry, member::GuildMember,
-        permissions::GuildRole, properties::GuildSticker, webhook::Webhook,
+        Guild, audit_log::GuildAuditLogs, bans::GuildBanListEntry, permissions::GuildRole,
+        properties::GuildSticker, webhook::Webhook,
     },
     id::{
         Id,
@@ -84,7 +84,7 @@ pub trait GuildExt {
         ctx: &Context,
         limit: Option<u16>,
         after: Option<Id<UserMarker>>,
-    ) -> Result<Vec<GuildMember>, Error>;
+    ) -> Result<Vec<Cached<CachedGuildMember>>, Error>;
     #[cfg(feature = "user_api")]
     async fn search_members(
         &self,
@@ -92,25 +92,25 @@ pub trait GuildExt {
         body: neptunium_http::endpoints::guild::SearchGuildMembersBody,
     ) -> Result<neptunium_http::endpoints::guild::SearchGuildMembersResponse, Error>;
     /// Get the authenticated bot/user as the guild member.
-    async fn get_current_member(&self, ctx: &Context) -> Result<GuildMember, Error>;
+    async fn get_current_member(&self, ctx: &Context) -> Result<Cached<CachedGuildMember>, Error>;
     #[cfg(feature = "user_api")]
     async fn update_current_member(
         &self,
         ctx: &Context,
         updates: neptunium_http::endpoints::guild::UpdateCurrentUserGuildMemberBody,
-    ) -> Result<GuildMember, Error>;
+    ) -> Result<Cached<CachedGuildMember>, Error>;
     async fn get_member(
         &self,
         ctx: &Context,
         member_id: Id<UserMarker>,
-    ) -> Result<GuildMember, Error>;
+    ) -> Result<Cached<CachedGuildMember>, Error>;
     async fn kick_member(&self, ctx: &Context, member_id: Id<UserMarker>) -> Result<(), Error>;
     async fn update_member(
         &self,
         ctx: &Context,
         member_id: Id<UserMarker>,
         body: UpdateGuildMemberBody,
-    ) -> Result<GuildMember, Error>;
+    ) -> Result<Cached<CachedGuildMember>, Error>;
     async fn add_role_to_member(
         &self,
         ctx: &Context,
@@ -344,15 +344,14 @@ impl<T: GuildTrait> GuildExt for T {
         ctx: &Context,
         limit: Option<u16>,
         after: Option<Id<UserMarker>>,
-    ) -> Result<Vec<GuildMember>, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(ListGuildMembers {
-                guild_id: self.get_guild_id(),
-                limit,
-                after,
-            })
-            .await?)
+    ) -> Result<Vec<Cached<CachedGuildMember>>, Error> {
+        Ok(ListGuildMembers {
+            guild_id: self.get_guild_id(),
+            limit,
+            after,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     #[cfg(feature = "user_api")]
@@ -370,13 +369,12 @@ impl<T: GuildTrait> GuildExt for T {
             .await?)
     }
 
-    async fn get_current_member(&self, ctx: &Context) -> Result<GuildMember, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(GetCurrentUserGuildMember {
-                guild_id: self.get_guild_id(),
-            })
-            .await?)
+    async fn get_current_member(&self, ctx: &Context) -> Result<Cached<CachedGuildMember>, Error> {
+        Ok(GetCurrentUserGuildMember {
+            guild_id: self.get_guild_id(),
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     #[cfg(feature = "user_api")]
@@ -384,30 +382,28 @@ impl<T: GuildTrait> GuildExt for T {
         &self,
         ctx: &Context,
         updates: neptunium_http::endpoints::guild::UpdateCurrentUserGuildMemberBody,
-    ) -> Result<GuildMember, Error> {
+    ) -> Result<Cached<CachedGuildMember>, Error> {
         use neptunium_http::endpoints::guild::UpdateCurrentUserGuildMember;
 
-        Ok(ctx
-            .get_http_client()
-            .execute(UpdateCurrentUserGuildMember {
-                guild_id: self.get_guild_id(),
-                body: updates,
-            })
-            .await?)
+        Ok(UpdateCurrentUserGuildMember {
+            guild_id: self.get_guild_id(),
+            body: updates,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn get_member(
         &self,
         ctx: &Context,
         member_id: Id<UserMarker>,
-    ) -> Result<GuildMember, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(GetGuildMember {
-                guild_id: self.get_guild_id(),
-                user_id: member_id,
-            })
-            .await?)
+    ) -> Result<Cached<CachedGuildMember>, Error> {
+        Ok(GetGuildMember {
+            guild_id: self.get_guild_id(),
+            user_id: member_id,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn kick_member(&self, ctx: &Context, member_id: Id<UserMarker>) -> Result<(), Error> {
@@ -425,15 +421,14 @@ impl<T: GuildTrait> GuildExt for T {
         ctx: &Context,
         member_id: Id<UserMarker>,
         body: UpdateGuildMemberBody,
-    ) -> Result<GuildMember, Error> {
-        Ok(ctx
-            .get_http_client()
-            .execute(UpdateGuildMember {
-                guild_id: self.get_guild_id(),
-                user_id: member_id,
-                body,
-            })
-            .await?)
+    ) -> Result<Cached<CachedGuildMember>, Error> {
+        Ok(UpdateGuildMember {
+            guild_id: self.get_guild_id(),
+            user_id: member_id,
+            body,
+        }
+        .execute_cached(ctx.get_http_client(), &ctx.cache)
+        .await?)
     }
 
     async fn add_role_to_member(

@@ -415,10 +415,15 @@ pub struct CachedGuildMember {
     pub profile_flags: Option<GuildMemberProfileFlags>,
     pub roles: Vec<Id<RoleMarker>>,
     pub user: Cached<PartialUser>,
+    pub guild_id: Id<GuildMarker>,
 }
 
 impl CachedGuildMember {
-    pub fn from_guild_member(guild_member: GuildMember, cache: &Arc<Cache>) -> Self {
+    pub fn from_guild_member(
+        guild_member: GuildMember,
+        guild_id: Id<GuildMarker>,
+        cache: &Arc<Cache>,
+    ) -> Self {
         let cached_user = guild_member.user.insert_and_return(cache);
         Self {
             accent_color: guild_member.accent_color,
@@ -432,6 +437,7 @@ impl CachedGuildMember {
             profile_flags: guild_member.profile_flags,
             roles: guild_member.roles,
             user: cached_user,
+            guild_id,
         }
     }
 }
@@ -480,10 +486,7 @@ impl CachedUserProfileFullResponse {
         let user_profile = (user_id, value.user_profile).insert_and_return(cache);
         let guild_member = if let Some(guild_id) = guild_id {
             value.guild_member.map(|member| {
-                (
-                    guild_id,
-                    CachedGuildMember::from_guild_member(member, cache),
-                )
+                CachedGuildMember::from_guild_member(member, guild_id, cache)
                     .insert_and_return(cache)
             })
         } else {
@@ -510,5 +513,11 @@ impl CachedUserProfileFullResponse {
             mutual_guilds: value.mutual_guilds,
             connected_accounts: value.connected_accounts,
         }
+    }
+}
+
+impl From<&CachedChannel> for Id<ChannelMarker> {
+    fn from(value: &CachedChannel) -> Self {
+        value.id
     }
 }

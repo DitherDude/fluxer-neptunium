@@ -8,7 +8,7 @@ use mini_moka::sync::ConcurrentCacheExt;
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::{
     channel::PreloadMessagesForChannels,
-    guild::{CreateGuild, DeleteGuild, TransferGuildOwnership},
+    guild::{CreateGuild, DeleteGuild, TransferGuildOwnership, UpdateCurrentUserGuildMember},
     users::{
         GetUserSettings, ListCurrentUserMentions, UpdateCurrentUserProfile, UpdateUserSettings,
     },
@@ -32,9 +32,10 @@ use neptunium_http::{
             RemoveUserFromGroupDm, SetPermissionOverwrite, UpdateCallRegion, UpdateChannelSettings,
         },
         guild::{
-            CreateGuildChannel, CreateGuildRole, DeleteGuildRole, GetGuildInformation, LeaveGuild,
-            ListCurrentUserGuilds, ListGuildChannels, ListGuildMembers, ListGuildRoles,
-            ToggleDetachedBanner, ToggleGuildTextChannelFlexibleNames, UpdateGuildRole,
+            CreateGuildChannel, CreateGuildRole, DeleteGuildRole, GetCurrentUserGuildMember,
+            GetGuildInformation, GetGuildMember, LeaveGuild, ListCurrentUserGuilds,
+            ListGuildChannels, ListGuildMembers, ListGuildRoles, ToggleDetachedBanner,
+            ToggleGuildTextChannelFlexibleNames, UpdateGuildMember, UpdateGuildRole,
             UpdateGuildRoleHoistPositions, UpdateGuildRoleHoistPositionsEntry,
             UpdateGuildRolePositions, UpdateGuildRolePositionsEntry, UpdateGuildVanityUrl,
             UpdateGuildVanityUrlResponse,
@@ -855,16 +856,13 @@ impl CachableEndpoint for ListGuildMembers {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let guild_id = self.guild_id;
         let res = client.execute(self).await?;
-        let res = res
+        Ok(res
             .into_iter()
             .map(|member| {
-                (
-                    guild_id,
-                    CachedGuildMember::from_guild_member(member, cache),
-                )
+                CachedGuildMember::from_guild_member(member, guild_id, cache)
+                    .insert_and_return(cache)
             })
-            .collect::<Vec<_>>();
-        Ok(cache_vec!(res, cache))
+            .collect::<Vec<_>>())
     }
 }
 
@@ -920,5 +918,87 @@ impl CachableEndpoint for CreateGuild {
     ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
         let res = client.execute(self).await?;
         Ok(res.insert_and_return(cache))
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for GetGuildMember {
+    type Response = Cached<CachedGuildMember>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        if let Some(existing_guild_members) = cache.guild_members.get(&self.guild_id) {
+            let existing_guild_members = existing_guild_members.load();
+            if let Some(existing_member) = existing_guild_members
+                .iter()
+                .find(|member| member.load().user.load().id == self.user_id)
+            {
+                return Ok(Cached::clone(existing_member));
+            }
+        }
+        let guild_id = self.guild_id;
+        let res = client.execute(self).await?;
+        let cached = CachedGuildMember::from_guild_member(res, guild_id, cache);
+        Ok(cached.insert_and_return(cache))
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for GetCurrentUserGuildMember {
+    type Response = Cached<CachedGuildMember>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        if let Some(own_profile) = cache.current_user.get()
+            && let Some(existing_guild_members) = cache.guild_members.get(&self.guild_id)
+        {
+            let own_id = own_profile.load().id;
+            let existing_guild_members = existing_guild_members.load();
+            if let Some(existing_member) = existing_guild_members
+                .iter()
+                .find(|member| member.load().user.load().id == own_id)
+            {
+                return Ok(Cached::clone(existing_member));
+            }
+        }
+        let guild_id = self.guild_id;
+        let res = client.execute(self).await?;
+        let cached = CachedGuildMember::from_guild_member(res, guild_id, cache);
+        Ok(cached.insert_and_return(cache))
+    }
+}
+
+#[cfg(feature = "user_api")]
+#[async_trait]
+impl CachableEndpoint for UpdateCurrentUserGuildMember {
+    type Response = Cached<CachedGuildMember>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let guild_id = self.guild_id;
+        let res = client.execute(self).await?;
+        let cached = CachedGuildMember::from_guild_member(res, guild_id, cache);
+        Ok(cached.insert_and_return(cache))
+    }
+}
+
+#[async_trait]
+impl CachableEndpoint for UpdateGuildMember {
+    type Response = Cached<CachedGuildMember>;
+    async fn execute_cached(
+        self,
+        client: &Arc<HttpClient>,
+        cache: &Arc<Cache>,
+    ) -> Result<<Self as CachableEndpoint>::Response, Box<ExecuteEndpointRequestError>> {
+        let guild_id = self.guild_id;
+        let res = client.execute(self).await?;
+        let cached = CachedGuildMember::from_guild_member(res, guild_id, cache);
+        Ok(cached.insert_and_return(cache))
     }
 }

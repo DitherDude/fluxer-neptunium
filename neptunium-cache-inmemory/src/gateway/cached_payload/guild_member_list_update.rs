@@ -44,10 +44,7 @@ impl CachedPayload for CachedGuildMemberListUpdate {
                             .into_iter()
                             .map(|item| CachedMemberListItem {
                                 member: item.member.map(|member| {
-                                    (
-                                        guild_id,
-                                        CachedGuildMember::from_guild_member(member, cache),
-                                    )
+                                    CachedGuildMember::from_guild_member(member, guild_id, cache)
                                         .insert_and_return(cache)
                                 }),
                                 group: item.group,
@@ -57,10 +54,7 @@ impl CachedPayload for CachedGuildMemberListUpdate {
                     index: operation.index,
                     item: operation.item.map(|item| CachedMemberListItem {
                         member: item.member.map(|member| {
-                            (
-                                guild_id,
-                                CachedGuildMember::from_guild_member(member, cache),
-                            )
+                            CachedGuildMember::from_guild_member(member, guild_id, cache)
                                 .insert_and_return(cache)
                         }),
                         group: item.group,
