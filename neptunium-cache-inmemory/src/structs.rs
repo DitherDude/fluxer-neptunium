@@ -416,6 +416,7 @@ pub struct CachedGuildMember {
     pub roles: Vec<Id<RoleMarker>>,
     pub user: Cached<PartialUser>,
     pub guild_id: Id<GuildMarker>,
+    pub id: Id<UserMarker>,
 }
 
 impl CachedGuildMember {
@@ -425,6 +426,7 @@ impl CachedGuildMember {
         cache: &Arc<Cache>,
     ) -> Self {
         let cached_user = guild_member.user.insert_and_return(cache);
+        let id = cached_user.load().id;
         Self {
             accent_color: guild_member.accent_color,
             avatar: guild_member.avatar,
@@ -438,6 +440,7 @@ impl CachedGuildMember {
             roles: guild_member.roles,
             user: cached_user,
             guild_id,
+            id,
         }
     }
 }

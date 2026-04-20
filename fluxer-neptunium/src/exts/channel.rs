@@ -1,5 +1,7 @@
 use async_trait::async_trait;
-use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel, CachedMessage};
+use neptunium_cache_inmemory::{
+    CachableEndpoint, CacheValue, Cached, CachedChannel, CachedMessage,
+};
 use neptunium_http::endpoints::{
     channel::{
         AddUserToGroupDm, BulkDeleteMessages, CallEligibilityStatus, ChannelSettingsUpdates,
@@ -20,7 +22,7 @@ use neptunium_model::{
     guild::webhook::Webhook,
     id::{
         Id,
-        marker::{GenericMarker, MessageMarker, UserMarker},
+        marker::{ChannelMarker, GenericMarker, MessageMarker, UserMarker},
     },
     invites::InviteWithMetadata,
 };
@@ -503,5 +505,40 @@ impl<T: ChannelTrait> ChannelExt for T {
                 attachments,
             })
             .await?)
+    }
+}
+
+#[async_trait]
+pub trait IntoCachedChannel {
+    /// Convert this into a `Cached<CachedChannel>`, possibly getting it from the API.
+    async fn into_cached_channel(self, ctx: &Context) -> Result<Cached<CachedChannel>, Error>;
+}
+
+#[async_trait]
+impl IntoCachedChannel for Channel {
+    async fn into_cached_channel(self, ctx: &Context) -> Result<Cached<CachedChannel>, Error> {
+        let cached_channel = CachedChannel::from_channel(self, &ctx.cache);
+        Ok(cached_channel.insert_and_return(&ctx.cache))
+    }
+}
+
+#[async_trait]
+impl IntoCachedChannel for CachedChannel {
+    async fn into_cached_channel(self, ctx: &Context) -> Result<Cached<CachedChannel>, Error> {
+        Ok(self.insert_and_return(&ctx.cache))
+    }
+}
+
+#[async_trait]
+impl IntoCachedChannel for Cached<CachedChannel> {
+    async fn into_cached_channel(self, _ctx: &Context) -> Result<Cached<CachedChannel>, Error> {
+        Ok(self)
+    }
+}
+
+#[async_trait]
+impl IntoCachedChannel for Id<ChannelMarker> {
+    async fn into_cached_channel(self, ctx: &Context) -> Result<Cached<CachedChannel>, Error> {
+        self.get(ctx).await
     }
 }

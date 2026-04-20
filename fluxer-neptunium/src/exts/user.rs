@@ -1,18 +1,23 @@
-use std::{cmp::Ordering, collections::HashMap};
+use std::collections::HashMap;
 
 use crate::{
-    client::error::Error, events::context::Context, exts::GuildExt,
+    client::error::Error,
+    events::context::Context,
+    exts::{GuildExt, IntoCachedChannel},
     internal::traits::user::UserTrait,
 };
 use async_trait::async_trait;
 use neptunium_cache_inmemory::{
-    CachableEndpoint, Cached, CachedChannel, CachedGuildMember, CachedUserProfileFullResponse,
+    CachableEndpoint, Cached, CachedGuildMember, CachedUserProfileFullResponse,
 };
 use neptunium_http::endpoints::users::{GetUserById, GetUserProfile, GetUserProfileParams};
 #[cfg(feature = "user_api")]
 use neptunium_model::user::relationship::Relationship;
 use neptunium_model::{
-    channel::PermissionOverwriteEntity, guild::permissions::Permissions, user::PartialUser,
+    channel::{PermissionOverwrite, PermissionOverwriteEntity},
+    guild::permissions::Permissions,
+    id::{Id, marker::GenericMarker},
+    user::PartialUser,
 };
 
 #[async_trait]
@@ -169,149 +174,164 @@ impl PartialUserExt for PartialUser {
 
 #[async_trait]
 pub trait GuildMemberExt {
-    /// Calculate the member's permissions based on their roles.
-    /// To calculate a member's permissions in a specific channel, use `calculate_permissions_in_channel`.
-    async fn calculate_permissions(&self, ctx: &Context) -> Result<Permissions, Error>;
-    /// Returns `Ok(None)` if the specified channel is not a guild channel.
-    /// Note that this does not account for whether the member is the owner of the guild
-    /// (and thus bypasses all permission checks).
-    async fn calculate_permissions_in_channel(
+    /// Calculate the member's permissions based on their roles (and the permissions of `@everyone`).
+    /// Does not take into account whether the member is the guild owner or has Administrator permissions (and thus would
+    /// bypass all permission checks).
+    ///
+    /// # Errors
+    /// Because it (at least currently) cannot be guaranteed that the guild roles are already cached,
+    /// the roles may be fetched from the API, which can produce network errors.
+    async fn get_permissions(&self, ctx: &Context) -> Result<Permissions, Error>;
+    /// Calculate the member's permissions in the given channel. The permissions are calculated with the following precedence
+    /// (from lowest to highest precedence):
+    ///
+    /// - Guild role permissions (including the `@everyone` role)
+    /// - Channel overrides of `@everyone`
+    /// - Channel overrides of the member's roles (the role positions are not taken into account)
+    /// - Channel overrides specifically for this member
+    ///
+    /// You can think of these precendences as levels of precision. The higher the precision, the higher the precedence.
+    ///
+    /// There are additional non-obvious rules for calculating overwrites:
+    ///
+    /// - An "allow" will override a "deny" on the same precedence level.
+    /// - A "deny" on a higher precedence level will override an "allow" on a lower precedence level.
+    ///
+    /// Returns empty permissions if the provided channel is not a guild channel.
+    /// This function does not take into account whether the member is the guild owner or has
+    /// Administrator permissions (and thus would bypass all permission checks).
+    ///
+    /// # Errors
+    /// Because it (at least currently) cannot be guaranteed that the guild roles are already cached,
+    /// the roles may be fetched from the API, which can produce network errors.
+    /// The provided channel may also need to be fetched from the API (for example, if an `Id<ChannelMarker>` was passed to
+    /// this function).
+    async fn get_permissions_in_channel<T: IntoCachedChannel + Send>(
         &self,
         ctx: &Context,
-        channel: &Cached<CachedChannel>,
-    ) -> Result<Option<Permissions>, Error>;
-    /// Whether this member is the owner of the guild.
+        channel: T,
+    ) -> Result<Permissions, Error>;
+    /// Whether this member is the guild owner.
     async fn is_guild_owner(&self, ctx: &Context) -> Result<bool, Error>;
-    /// Whether the member has the specified permissions. If the member is the owner of the guild,
-    /// this function will always return `true`.
+    /// Calculate whether the member has the provided permissions based on their roles (and the permissions of `@everyone`).
+    /// If the member is the guild owner or has administrator permissions, this will always return `true`.
+    ///
+    /// # Errors
+    /// Because it (at least currently) cannot be guaranteed that the guild roles are already cached,
+    /// the roles may be fetched from the API, which can produce network errors.
     async fn has_permissions(&self, ctx: &Context, permissions: Permissions)
     -> Result<bool, Error>;
-    /// Returns `Ok(None)` if the specified channel is not a guild channel. Will always return
-    /// `true` if the member is the owner of the guild.
-    async fn has_permissions_in_channel(
+    /// Calculate whether the member has the provided permissions based on their roles (and the permissions of `@everyone`)
+    /// and the permission overwrites of the given channel.
+    /// If the member is the guild owner or has administrator permissions, this will always return `true`.
+    ///
+    /// # Errors
+    /// Because it (at least currently) cannot be guaranteed that the guild roles are already cached,
+    /// the roles may be fetched from the API, which can produce network errors.
+    /// The provided channel may also need to be fetched from the API (for example, if an `Id<ChannelMarker>` was passed to
+    /// this function).
+    async fn has_permissions_in_channel<T: IntoCachedChannel + Send>(
         &self,
         ctx: &Context,
-        channel: &Cached<CachedChannel>,
+        channel: T,
         permissions: Permissions,
-    ) -> Result<Option<bool>, Error>;
+    ) -> Result<bool, Error>;
 }
 
 #[async_trait]
 impl GuildMemberExt for CachedGuildMember {
-    async fn calculate_permissions(&self, ctx: &Context) -> Result<Permissions, Error> {
-        let mut role_permissions = Vec::with_capacity(self.roles.len());
-        let roles = self
+    async fn get_permissions(&self, ctx: &Context) -> Result<Permissions, Error> {
+        let own_role_ids = &self.roles;
+        let guild_roles_permissions = self
             .guild_id
             .list_roles(ctx)
             .await?
             .into_iter()
             .map(|role| {
                 let role = role.load();
-                (role.id, role)
+                (role.id, role.permissions)
             })
             .collect::<HashMap<_, _>>();
-        for role_id in &self.roles {
-            let Some(role) = roles.get(role_id) else {
-                tracing::warn!(
-                    "User has role {} but it was not found in the guild {}.",
-                    role_id,
-                    self.guild_id
-                );
-                continue;
-            };
-            role_permissions.push(role.permissions);
-        }
 
-        Ok(role_permissions
-            .into_iter()
-            .fold(Permissions::empty(), |acc, role_perms| {
-                acc.union(role_perms)
-            }))
+        let everyone_permissions = guild_roles_permissions.get(&self.guild_id.cast()).copied();
+
+        let mut permissions = own_role_ids
+            .iter()
+            .fold(Permissions::empty(), |acc, role_id| {
+                let Some(role_permissions) = guild_roles_permissions.get(role_id) else {
+                    tracing::warn!(
+                        "Role with ID {} is present on user but was not found in the guild.",
+                        role_id
+                    );
+                    return acc;
+                };
+                acc.union(*role_permissions)
+            });
+        if let Some(everyone_permissions) = everyone_permissions {
+            permissions = permissions.union(everyone_permissions);
+        } else {
+            tracing::warn!("Role for [@]everyone not present in guild roles.");
+        }
+        Ok(permissions)
     }
 
-    async fn calculate_permissions_in_channel(
+    async fn get_permissions_in_channel<T: IntoCachedChannel + Send>(
         &self,
         ctx: &Context,
-        channel: &Cached<CachedChannel>,
-    ) -> Result<Option<Permissions>, Error> {
-        let channel = channel.load();
-        let my_id = self.user.load().id;
-        let user_permissions = self.calculate_permissions(ctx).await?;
-        let user_roles = &self.roles;
-        let Some(mut permission_overwrites) = channel.permission_overwrites.clone() else {
-            return Ok(None);
+        channel: T,
+    ) -> Result<Permissions, Error> {
+        let mut calculated_permissions = self.get_permissions(ctx).await?;
+        let channel_permission_overwrites = {
+            let channel = channel.into_cached_channel(ctx).await?;
+            channel
+                .load()
+                .permission_overwrites
+                .as_deref()
+                .map(|overwrites| {
+                    overwrites
+                        .iter()
+                        .map(|overwrite| (overwrite.id, *overwrite))
+                        .collect::<HashMap<Id<GenericMarker>, PermissionOverwrite>>()
+                })
         };
-        let role_positions = self
-            .guild_id
-            .list_roles(ctx)
-            .await?
+        let Some(mut channel_permission_overwrites) = channel_permission_overwrites else {
+            return Ok(Permissions::empty());
+        };
+        let everyone_role_id = self.guild_id.cast::<GenericMarker>();
+        if let Some(everyone_permission_overwrite) =
+            channel_permission_overwrites.remove(&everyone_role_id)
+        {
+            calculated_permissions =
+                calculated_permissions.difference(everyone_permission_overwrite.deny);
+            calculated_permissions =
+                calculated_permissions.union(everyone_permission_overwrite.allow);
+        }
+
+        let (role_overwrites, member_overwrites): (Vec<_>, Vec<_>) = channel_permission_overwrites
+            .into_values()
+            .partition(|overwrite| overwrite.r#type == PermissionOverwriteEntity::Role);
+
+        calculated_permissions = role_overwrites
             .into_iter()
-            .map(|role| {
-                let role = role.load();
-                (role.id, role.position)
-            })
-            .collect::<HashMap<_, _>>();
+            .fold(calculated_permissions, |acc, overwrite| {
+                acc.difference(overwrite.deny).union(overwrite.allow)
+            });
 
-        // Note that there is no guarantee that the overwrites
-        // are in the correct order
-        // Source: https://fluxer.app/channels/1427764813854588940/1483532018185537313/1495486102027720271
-        // Neither are the user roles:
-        // https://fluxer.app/channels/1427764813854588940/1483532018185537313/1495496523828812182
+        if let Some(own_overwrite) = member_overwrites
+            .into_iter()
+            .find(|overwrite| overwrite.id == self.id.cast())
+        {
+            calculated_permissions = calculated_permissions
+                .difference(own_overwrite.deny)
+                .union(own_overwrite.allow);
+        }
 
-        // Since the permission overwrites will usually (or always?) be in the correct order, this
-        // operation will usually take linear time, given the current implementation
-        // of sort_by.
-        permission_overwrites.sort_by(|a, b| {
-            if a.r#type == PermissionOverwriteEntity::Member {
-                Ordering::Greater
-            } else if b.r#type == PermissionOverwriteEntity::Member {
-                Ordering::Less
-            } else {
-                // Check for @everyone role:
-                if a.id.cast() == self.guild_id {
-                    return Ordering::Less;
-                } else if b.id.cast() == self.guild_id {
-                    return Ordering::Greater;
-                }
-                let Some(a_role_position) = role_positions.get(&a.id.cast()) else {
-                    return Ordering::Equal;
-                };
-                let Some(b_role_position) = role_positions.get(&b.id.cast()) else {
-                    return Ordering::Equal;
-                };
-                let ordering = a_role_position.cmp(b_role_position);
-                if ordering == Ordering::Equal {
-                    // The position may be equal, in this case the ID is used for ordering.
-                    a.id.into_inner().cmp(&b.id.into_inner())
-                } else {
-                    ordering
-                }
-            }
-        });
-
-        Ok(Some(permission_overwrites.iter().rev().fold(
-            user_permissions,
-            |mut acc, overwrite| {
-                if (overwrite.r#type == PermissionOverwriteEntity::Member
-                    && overwrite.id.cast() == my_id)
-                    || user_roles.contains(&overwrite.id.cast())
-                    || overwrite.id.cast() == self.guild_id
-                {
-                    acc = acc.difference(overwrite.deny);
-                    acc = acc.union(overwrite.allow);
-                }
-                acc
-            },
-        )))
+        Ok(calculated_permissions)
     }
 
     async fn is_guild_owner(&self, ctx: &Context) -> Result<bool, Error> {
-        let guild = match ctx.cache.guilds.get(&self.guild_id) {
-            Some(guild) => guild,
-            None => self.guild_id.fetch(ctx).await?,
-        };
-        let guild = guild.load();
-        Ok(guild.owner_id == self.user.load().id)
+        let guild = self.guild_id.fetch(ctx).await?.load();
+        Ok(self.id == guild.owner_id)
     }
 
     async fn has_permissions(
@@ -322,20 +342,26 @@ impl GuildMemberExt for CachedGuildMember {
         if self.is_guild_owner(ctx).await? {
             return Ok(true);
         }
-        let user_permissions = self.calculate_permissions(ctx).await?;
-        Ok(user_permissions.contains(permissions))
+        let member_permissions = self.get_permissions(ctx).await?;
+        if member_permissions.contains(Permissions::ADMINISTRATOR) {
+            return Ok(true);
+        }
+        Ok(member_permissions.contains(permissions))
     }
 
-    async fn has_permissions_in_channel(
+    async fn has_permissions_in_channel<T: IntoCachedChannel + Send>(
         &self,
         ctx: &Context,
-        channel: &Cached<CachedChannel>,
+        channel: T,
         permissions: Permissions,
-    ) -> Result<Option<bool>, Error> {
+    ) -> Result<bool, Error> {
         if self.is_guild_owner(ctx).await? {
-            return Ok(Some(true));
+            return Ok(true);
         }
-        let user_channel_permissions = self.calculate_permissions_in_channel(ctx, channel).await?;
-        Ok(user_channel_permissions.map(|p| p.contains(permissions)))
+        let member_permissions = self.get_permissions_in_channel(ctx, channel).await?;
+        if member_permissions.contains(Permissions::ADMINISTRATOR) {
+            return Ok(true);
+        }
+        Ok(member_permissions.contains(permissions))
     }
 }

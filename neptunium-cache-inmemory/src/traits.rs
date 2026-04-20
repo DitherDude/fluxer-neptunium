@@ -19,7 +19,7 @@ use neptunium_model::{
 
 pub mod cachable_endpoints;
 
-pub(crate) trait CacheValue<Result = Self>: Sized {
+pub trait CacheValue<Result = Self>: Sized {
     fn insert_and_return(self, cache: &Arc<Cache>) -> Cached<Result>;
 }
 
