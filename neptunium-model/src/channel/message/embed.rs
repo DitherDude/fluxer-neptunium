@@ -90,6 +90,7 @@ pub struct EmbedAuthor {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Builder)]
 pub struct EmbedField {
+    #[builder(default = true)]
     pub inline: bool,
     #[builder(into)]
     pub name: String,
