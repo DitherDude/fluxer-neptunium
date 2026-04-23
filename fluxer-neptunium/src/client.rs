@@ -631,22 +631,8 @@ impl Client {
                 });
                 call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_ready);
             }
-            CachedDispatchEvent::Resumed(()) => {
-                for handler in &self.event_handlers {
-                    let handler = Arc::clone(handler);
-                    let ctx_clone = self.context.clone();
-                    let tx_clone = self.tx.clone();
-                    let always_propagate_event_errors = self.always_propagate_event_errors;
-                    tokio::spawn(async move {
-                        if let Err(e) = handler.on_resumed(ctx_clone).await {
-                            if e.propagate || always_propagate_event_errors {
-                                let _ = tx_clone.send(ClientMessage::PropagateEventError(e));
-                            } else {
-                                tracing::warn!("Event handler returned error: {e}");
-                            }
-                        }
-                    });
-                }
+            CachedDispatchEvent::Resumed(data) => {
+                call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_resumed);
             }
             CachedDispatchEvent::SessionsReplace(data) => {
                 call_event_handlers!(self.always_propagate_event_errors, self.tx, self.event_handlers, self.context, data => on_sessions_replace);

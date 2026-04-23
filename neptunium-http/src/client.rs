@@ -96,6 +96,7 @@ impl HttpClient {
                         .await,
                 )
             };
+            tracing::trace!("Sending request: {:?}", request);
             let response = match request.execute(self).await {
                 Ok(response) => response,
                 Err(e) => {

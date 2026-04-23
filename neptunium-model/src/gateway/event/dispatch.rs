@@ -11,8 +11,8 @@ use crate::{
         GuildStickersUpdate, InviteDelete, MessageAck, MessageCreate, MessageDelete,
         MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
         MessageReactionRemoveEmoji, PresenceUpdateIncoming, Ready, RecentMentionDelete,
-        RelationshipRemove, SavedMessageDelete, TypingStart, UserNoteUpdate, UserPrivateResponse,
-        VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
+        RelationshipRemove, Resumed, SavedMessageDelete, TypingStart, UserNoteUpdate,
+        UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
     },
     guild::{Guild, member::GuildMember},
     id::{Id, marker::ChannelMarker},
@@ -30,8 +30,9 @@ use crate::{
 #[serde(tag = "t", content = "d", rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum DispatchEvent {
     Ready(Ready),
-    /// The payload is null. The presence of this event indicates a successful resume.
-    Resumed(()),
+    /// The payload is documented to be null, but has data in practice (undocumented).
+    /// The presence of this event indicates a successful resume.
+    Resumed(Option<Resumed>),
     // TODO: Find out what type this is
     SessionsReplace(Vec<serde_json::Value>),
     GuildAuditLogEntryCreate(GuildAuditLogEntryCreate),

@@ -17,8 +17,8 @@ use neptunium_model::{
         GuildMemberRemove, GuildMembersChunk, GuildRoleDelete, GuildStickersUpdate, InviteDelete,
         MessageAck, MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
         MessageReactionRemoveAll, MessageReactionRemoveEmoji, PresenceUpdateIncoming,
-        RecentMentionDelete, RelationshipRemove, SavedMessageDelete, TypingStart, UserNoteUpdate,
-        UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
+        RecentMentionDelete, RelationshipRemove, Resumed, SavedMessageDelete, TypingStart,
+        UserNoteUpdate, UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
     },
     guild::{Guild, member::GuildMember, permissions::GuildRole},
     id::{Id, marker::ChannelMarker},
@@ -39,7 +39,7 @@ pub trait EventHandler: Send {
     async fn on_ready(&self, ctx: Context, data: Arc<CachedReady>) -> Result<(), EventError> {
         Ok(())
     }
-    async fn on_resumed(&self, ctx: Context) -> Result<(), EventError> {
+    async fn on_resumed(&self, ctx: Context, data: Arc<Option<Resumed>>) -> Result<(), EventError> {
         Ok(())
     }
     async fn on_sessions_replace(

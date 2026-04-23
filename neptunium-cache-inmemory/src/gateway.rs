@@ -11,7 +11,7 @@ use neptunium_model::{
             GuildRoleDelete, GuildStickersUpdate, InviteDelete, MessageAck, MessageDelete,
             MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
             MessageReactionRemoveEmoji, PresenceUpdateIncoming, RecentMentionDelete,
-            RelationshipRemove, SavedMessageDelete, TypingStart, UserNoteUpdate,
+            RelationshipRemove, Resumed, SavedMessageDelete, TypingStart, UserNoteUpdate,
             UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
         },
     },
@@ -41,7 +41,8 @@ impl CachedDispatchEvent {
             DispatchEvent::Ready(payload) => {
                 CachedDispatchEvent::Ready(CachedReady::cache_payload(payload, cache))
             }
-            DispatchEvent::Resumed(()) => CachedDispatchEvent::Resumed(()),
+            // TODO: Theoretically we can add caching for this (country code, latitude, longitude) but it doesn't really matter currently
+            DispatchEvent::Resumed(payload) => CachedDispatchEvent::Resumed(payload),
             DispatchEvent::SessionsReplace(payload) => {
                 CachedDispatchEvent::SessionsReplace(payload)
             }
@@ -210,8 +211,9 @@ impl CachedDispatchEvent {
 
 pub enum CachedDispatchEvent {
     Ready(CachedReady),
-    /// The payload is null. The presence of this event indicates a successful resume.
-    Resumed(()),
+    /// The payload is documented to be null, but has data in practice (undocumented).
+    /// The presence of this event indicates a successful resume.
+    Resumed(Option<Resumed>),
     SessionsReplace(Vec<serde_json::Value>),
     GuildAuditLogEntryCreate(GuildAuditLogEntryCreate),
     UserUpdate(Cached<UserPrivateResponse>),
