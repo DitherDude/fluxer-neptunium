@@ -42,6 +42,7 @@ pub enum StringOrBool {
     Bool(bool),
 }
 
+/*
 #[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(untagged)]
 pub enum ListOrSingleValue<T> {
@@ -60,6 +61,7 @@ impl<T> From<Vec<T>> for ListOrSingleValue<T> {
         Self::Multiple(value)
     }
 }
+*/
 
 macro_rules! serde_bitflags {
     ($name:ty, String($ty:ty)) => {

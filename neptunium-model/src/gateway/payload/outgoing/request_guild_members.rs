@@ -2,12 +2,9 @@ use bon::Builder;
 use serde::Serialize;
 use serde_json::json;
 
-use crate::{
-    id::{
-        Id,
-        marker::{GuildMarker, UserMarker},
-    },
-    misc::ListOrSingleValue,
+use crate::id::{
+    Id,
+    marker::{GuildMarker, UserMarker},
 };
 
 // Source: https://github.com/fluxerapp/fluxer/blob/ee1f27fe1a372b5291aead8042944afd706bf5db/fluxer_app/src/lib/GatewaySocket.tsx#L324
@@ -15,7 +12,7 @@ use crate::{
 #[derive(Serialize, Clone, Debug, Builder)]
 pub struct RequestGuildMembers {
     #[builder(into)]
-    pub guild_id: ListOrSingleValue<Id<GuildMarker>>,
+    pub guild_ids: Vec<Id<GuildMarker>>,
     #[serde(flatten)]
     #[builder(into)]
     pub query: RequestGuildMembersQuery,
