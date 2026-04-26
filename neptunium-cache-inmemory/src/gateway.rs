@@ -7,9 +7,9 @@ use neptunium_model::{
             AuthSessionChange, CallCreate, CallDelete, CallUpdate, ChannelPinsAck,
             ChannelPinsUpdate, ChannelRecipientAdd, ChannelRecipientRemove, ChannelUpdateBulk,
             FavoriteMemeDelete, GuildAuditLogEntryCreate, GuildBanAdd, GuildBanRemove, GuildDelete,
-            GuildEmojisUpdate, GuildMemberRemove, GuildMembersChunk, GuildRoleCreate,
-            GuildRoleDelete, GuildStickersUpdate, InviteDelete, MessageAck, MessageDelete,
-            MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
+            GuildEmojisUpdate, GuildMemberRemove, GuildRoleCreate, GuildRoleDelete,
+            GuildStickersUpdate, InviteDelete, MessageAck, MessageDelete, MessageDeleteBulk,
+            MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
             MessageReactionRemoveEmoji, PresenceUpdateIncoming, RecentMentionDelete,
             RelationshipRemove, Resumed, SavedMessageDelete, TypingStart, UserNoteUpdate,
             UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
@@ -27,8 +27,8 @@ use neptunium_model::{
 use crate::{
     Cache, CacheValue, Cached, CachedChannel, CachedMessage,
     gateway::cached_payload::{
-        CachedGuildCreate, CachedGuildMemberListUpdate, CachedGuildRoleUpdateBulk,
-        CachedMessageCreate, CachedPayload, CachedReady,
+        CachedGuildCreate, CachedGuildMemberListUpdate, CachedGuildMembersChunk,
+        CachedGuildRoleUpdateBulk, CachedMessageCreate, CachedPayload, CachedReady,
     },
 };
 
@@ -197,9 +197,9 @@ impl CachedDispatchEvent {
             DispatchEvent::CallUpdate(payload) => CachedDispatchEvent::CallUpdate(payload),
             DispatchEvent::CallDelete(payload) => CachedDispatchEvent::CallDelete(payload),
             DispatchEvent::PassiveUpdates(payload) => CachedDispatchEvent::PassiveUpdates(payload),
-            DispatchEvent::GuildMembersChunk(payload) => {
-                CachedDispatchEvent::GuildMembersChunk(payload)
-            }
+            DispatchEvent::GuildMembersChunk(payload) => CachedDispatchEvent::GuildMembersChunk(
+                CachedGuildMembersChunk::cache_payload(payload, cache),
+            ),
             DispatchEvent::GuildMemberListUpdate(payload) => {
                 CachedDispatchEvent::GuildMemberListUpdate(
                     CachedGuildMemberListUpdate::cache_payload(payload, cache),
@@ -288,8 +288,7 @@ pub enum CachedDispatchEvent {
     /// Dispatched to all recipients when the call terminates (all participants leave or timeout).
     CallDelete(CallDelete),
     PassiveUpdates(neptunium_model::gateway::payload::incoming::PassiveUpdates),
-    // TODO: Cache this when guild members are cached
     /// Sent in response to `RequestGuildMembers`.
-    GuildMembersChunk(GuildMembersChunk),
+    GuildMembersChunk(CachedGuildMembersChunk),
     GuildMemberListUpdate(CachedGuildMemberListUpdate),
 }

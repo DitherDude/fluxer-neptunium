@@ -5,18 +5,18 @@ use std::{
     time::Duration,
 };
 
-use neptunium_cache_inmemory::{Cache, gateway::CachedDispatchEvent};
+use neptunium_cache_inmemory::{
+    Cache,
+    gateway::{CachedDispatchEvent, cached_payload::CachedGuildMembersChunk},
+};
 use neptunium_gateway::shard::{EventReceiveError, Shard, config::ShardConfig};
 use neptunium_http::client::HttpClient;
 use neptunium_model::gateway::{
     close_code::GatewayCloseCode,
     event::{dispatch::DispatchEvent, gateway::GatewayEvent, invalid_session::InvalidSessionEvent},
-    payload::{
-        incoming::GuildMembersChunk,
-        outgoing::{
-            ConnectionProperties, Heartbeat, LazyRequest, OutgoingGatewayMessage,
-            PresenceUpdateOutgoing, RequestGuildMembers,
-        },
+    payload::outgoing::{
+        ConnectionProperties, Heartbeat, LazyRequest, OutgoingGatewayMessage,
+        PresenceUpdateOutgoing, RequestGuildMembers,
     },
 };
 use tokio::{
@@ -50,7 +50,7 @@ pub(crate) enum ClientMessage {
     RequestGuildMembers(
         RequestGuildMembers,
         oneshot::Sender<Result<(), neptunium_gateway::shard::Error>>,
-        Option<UnboundedSender<GuildMembersChunk>>,
+        Option<UnboundedSender<CachedGuildMembersChunk>>,
     ),
     SendLazyRequest(
         LazyRequest,
@@ -78,7 +78,7 @@ pub struct Client {
     always_propagate_event_errors: bool,
     resume_info: Option<ResumeInfo>,
     auto_reconnect: bool,
-    guild_members_chunk_listeners: HashMap<String, UnboundedSender<GuildMembersChunk>>,
+    guild_members_chunk_listeners: HashMap<String, UnboundedSender<CachedGuildMembersChunk>>,
     expecting_heartbeat_ack: bool,
     expecting_heartbeat_ack_second_chance: bool,
     currently_resuming: bool,

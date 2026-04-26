@@ -5,8 +5,8 @@ use bon::Builder;
 use neptunium_cache_inmemory::{
     Cached, CachedChannel, CachedMessage,
     gateway::cached_payload::{
-        CachedGuildCreate, CachedGuildMemberListUpdate, CachedGuildRoleUpdateBulk,
-        CachedMessageCreate, CachedReady,
+        CachedGuildCreate, CachedGuildMemberListUpdate, CachedGuildMembersChunk,
+        CachedGuildRoleUpdateBulk, CachedMessageCreate, CachedReady,
     },
 };
 use neptunium_model::{
@@ -14,8 +14,8 @@ use neptunium_model::{
         AuthSessionChange, CallCreate, CallDelete, CallUpdate, ChannelPinsAck, ChannelPinsUpdate,
         ChannelRecipientAdd, ChannelRecipientRemove, ChannelUpdateBulk, FavoriteMemeDelete,
         GuildAuditLogEntryCreate, GuildBanAdd, GuildBanRemove, GuildDelete, GuildEmojisUpdate,
-        GuildMemberRemove, GuildMembersChunk, GuildRoleDelete, GuildStickersUpdate, InviteDelete,
-        MessageAck, MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
+        GuildMemberRemove, GuildRoleDelete, GuildStickersUpdate, InviteDelete, MessageAck,
+        MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
         MessageReactionRemoveAll, MessageReactionRemoveEmoji, PresenceUpdateIncoming,
         RecentMentionDelete, RelationshipRemove, Resumed, SavedMessageDelete, TypingStart,
         UserNoteUpdate, UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
@@ -446,7 +446,7 @@ pub trait EventHandler: Send {
     async fn on_guild_members_chunk(
         &self,
         ctx: Context,
-        data: Arc<GuildMembersChunk>,
+        data: Arc<CachedGuildMembersChunk>,
     ) -> Result<(), EventError> {
         Ok(())
     }

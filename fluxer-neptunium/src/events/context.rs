@@ -5,7 +5,7 @@ use std::time::Duration;
 use bon::Builder;
 #[cfg(feature = "user_api")]
 use neptunium_cache_inmemory::CachedMessage;
-use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel};
+use neptunium_cache_inmemory::{CachableEndpoint, Cached, CachedChannel, CachedGuildMember};
 #[cfg(feature = "user_api")]
 use neptunium_http::endpoints::{
     channel::ScheduledMessageResponse,
@@ -58,7 +58,7 @@ use neptunium_model::{
             GuildSubscriptionRequest, LazyRequest, PresenceUpdateOutgoing, RequestGuildMembers,
         },
     },
-    guild::{Guild, member::GuildMember},
+    guild::Guild,
     id::{
         Id,
         marker::{ChannelMarker, GuildMarker},
@@ -206,8 +206,6 @@ impl Context {
         }
     }
 
-    // TODO: Once caching for guild members and presences exists, cache these things here.
-    // Or more likely cache them in the GuildMembersChunk struct thing directly!!
     /// Request guild members from the gateway. Internally, this waits for all chunks to have arrived
     /// and then returns the list of members. For a lower-level version, use `request_guild_members_raw`.
     ///
@@ -215,7 +213,7 @@ impl Context {
     pub async fn request_guild_members(
         &self,
         mut data: RequestGuildMembers,
-    ) -> Result<Vec<GuildMember>, Error> {
+    ) -> Result<Vec<Cached<CachedGuildMember>>, Error> {
         // This is to make sure that the request has a proper nonce.
         data.nonce = Some(Nonce::generate().0);
         let (oneshot_tx, oneshot_rx) = oneshot::channel();
@@ -251,8 +249,7 @@ impl Context {
     }
 
     /// Send `RequestGuildMembers` to the gateway without waiting for the result.
-    /// You will need to manage receiving the members yourself. This can be useful when you require
-    /// lower-level control though.
+    /// You will need to manage receiving the members yourself.
     pub async fn request_guild_members_raw(&self, data: RequestGuildMembers) -> Result<(), Error> {
         let (tx, rx) = oneshot::channel();
         if self
