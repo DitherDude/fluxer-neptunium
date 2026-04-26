@@ -58,28 +58,6 @@ impl Method {
 ///
 /// The rate limiter dynamically supports new or unknown API paths, but is consequently unable to
 /// catch invalid arguments. Invalidly structured endpoints may be permitted at an improper time.
-///
-/// # Example
-///
-/// ```no_run
-/// # let rt = tokio::runtime::Builder::new_current_thread()
-/// #     .enable_time()
-/// #     .build()
-/// #     .unwrap();
-/// # rt.block_on(async {
-/// # let rate_limiter = twilight_http_ratelimiting::RateLimiter::default();
-/// use twilight_http_ratelimiting::{Endpoint, Method};
-///
-/// let url = "https://discord.com/api/v10/guilds/745809834183753828/audit-logs?limit=10";
-/// let endpoint = Endpoint {
-///     method: Method::Get,
-///     path: String::from("guilds/745809834183753828/audit-logs"),
-/// };
-/// let permit = rate_limiter.acquire(endpoint).await;
-/// let headers = unimplemented!("GET {url}");
-/// permit.complete(headers);
-/// # });
-/// ```
 #[derive(Clone, Debug, Eq, Hash, PartialEq)]
 
 pub struct Endpoint {
@@ -300,31 +278,6 @@ impl RateLimiter {
     /// Permits are queued per endpoint in the order they were requested.
     ///
     /// Note that the predicate is asynchronously called in the actor task.
-    ///
-    /// # Example
-    ///
-    /// ```no_run
-    /// # let rt = tokio::runtime::Builder::new_current_thread()
-    /// #     .enable_time()
-    /// #     .build()
-    /// #     .unwrap();
-    /// # rt.block_on(async {
-    /// # let rate_limiter = twilight_http_ratelimiting::RateLimiter::default();
-    /// use twilight_http_ratelimiting::{Endpoint, Method};
-    ///
-    /// let endpoint = Endpoint {
-    ///     method: Method::Get,
-    ///     path: String::from("applications/@me"),
-    /// };
-    /// if let Some(permit) = rate_limiter
-    ///     .acquire_if(endpoint, |b| b.is_none_or(|b| b.remaining > 10))
-    ///     .await
-    /// {
-    ///     let headers = unimplemented!("GET /applications/@me");
-    ///     permit.complete(headers);
-    /// }
-    /// # });
-    /// ```
     #[allow(clippy::missing_panics_doc)]
     pub fn acquire_if<P>(&self, endpoint: Endpoint, predicate: P) -> MaybePermitFuture
     where
