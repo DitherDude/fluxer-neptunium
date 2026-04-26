@@ -2,7 +2,7 @@ use bon::Builder;
 use neptunium_model::{
     guild::permissions::{GuildRole, Permissions},
     id::{Id, marker::GuildMarker},
-    misc::HexColor32,
+    misc::HexColor,
 };
 use reqwest::Method;
 use serde::Serialize;
@@ -14,7 +14,7 @@ pub struct CreateGuildRoleBody {
     #[builder(into)]
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<HexColor32>,
+    pub color: Option<HexColor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Permissions>,
 }

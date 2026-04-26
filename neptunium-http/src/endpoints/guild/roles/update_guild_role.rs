@@ -5,7 +5,7 @@ use neptunium_model::{
         Id,
         marker::{GuildMarker, RoleMarker},
     },
-    misc::HexColor32,
+    misc::HexColor,
 };
 use reqwest::Method;
 use serde::Serialize;
@@ -18,7 +18,7 @@ pub struct UpdateGuildRoleBody {
     #[builder(into)]
     pub name: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<HexColor32>,
+    pub color: Option<HexColor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub permissions: Option<Permissions>,
     #[serde(skip_serializing_if = "Option::is_none")]

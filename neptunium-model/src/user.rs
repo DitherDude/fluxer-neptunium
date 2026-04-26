@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     id::{Id, marker::UserMarker},
-    misc::HexColor32,
+    misc::HexColor,
     user::flags::PublicUserFlags,
 };
 
@@ -23,7 +23,7 @@ pub mod settings;
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PartialUser {
     pub avatar: Option<String>,
-    pub avatar_color: Option<HexColor32>,
+    pub avatar_color: Option<HexColor>,
     #[serde(default)]
     pub bot: bool,
     // TODO: Maybe store as u16 instead
@@ -42,8 +42,8 @@ pub struct UserProfileData {
     pub bio: Option<String>,
     pub pronouns: Option<String>,
     pub banner: Option<String>,
-    pub accent_color: Option<HexColor32>,
-    pub banner_color: Option<HexColor32>,
+    pub accent_color: Option<HexColor>,
+    pub banner_color: Option<HexColor>,
 }
 
 #[derive(Deserialize, Copy, Clone, Debug)]

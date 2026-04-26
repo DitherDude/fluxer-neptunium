@@ -5,7 +5,7 @@ use bon::Builder;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    misc::{HexColor32, serde_bitflags},
+    misc::{HexColor, serde_bitflags},
     time::{
         duration::{Duration, Seconds},
         timestamp::{Timestamp, representations::Iso8601},
@@ -137,7 +137,7 @@ pub struct MessageEmbedBase {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<EmbedAuthor>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<HexColor32>,
+    pub color: Option<HexColor>,
     #[builder(into)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,

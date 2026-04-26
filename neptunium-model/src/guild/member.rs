@@ -4,7 +4,7 @@ use serde_repr::{Deserialize_repr, Serialize_repr};
 
 use crate::{
     id::{Id, marker::RoleMarker},
-    misc::{HexColor32, serde_bitflags},
+    misc::{HexColor, serde_bitflags},
     time::timestamp::{Timestamp, representations::Iso8601},
     user::PartialUser,
 };
@@ -40,7 +40,7 @@ serde_bitflags! {GuildMemberProfileFlags, u32}
 pub struct GuildMember {
     pub user: PartialUser,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub accent_color: Option<HexColor32>,
+    pub accent_color: Option<HexColor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub avatar: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -72,5 +72,5 @@ pub struct GuildMemberProfile {
     pub bio: Option<String>,
     pub pronouns: Option<String>,
     pub banner: Option<String>,
-    pub accent_color: Option<HexColor32>,
+    pub accent_color: Option<HexColor>,
 }

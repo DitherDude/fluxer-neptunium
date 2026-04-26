@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     id::{Id, marker::RoleMarker},
-    misc::{HexColor32, serde_bitflags},
+    misc::{HexColor, serde_bitflags},
 };
 
 bitflags! {
@@ -93,7 +93,7 @@ pub struct GuildRole {
     pub name: String,
     pub permissions: Permissions,
     pub position: u16,
-    pub color: HexColor32,
+    pub color: HexColor,
     /// Hash of the icon
     pub icon: Option<String>,
     pub unicode_emoji: Option<String>,

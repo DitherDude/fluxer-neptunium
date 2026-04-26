@@ -11,7 +11,7 @@ use crate::{
         Id,
         marker::{ChannelMarker, GuildMarker},
     },
-    misc::{HexColor32, serde_bitflags},
+    misc::{HexColor, serde_bitflags},
     time::{
         duration::{Duration, Seconds},
         timestamp::{Timestamp, representations::Iso8601},
@@ -85,7 +85,7 @@ pub enum GuildFoldersItemIcon {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct GuildFoldersItem {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub color: Option<HexColor32>,
+    pub color: Option<HexColor>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flags: Option<GuildFolderFlags>,
     pub guild_ids: Option<Vec<Id<GuildMarker>>>,

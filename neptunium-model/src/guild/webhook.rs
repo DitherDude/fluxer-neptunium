@@ -7,7 +7,7 @@ use crate::{
         Id,
         marker::{ChannelMarker, GuildMarker, UserMarker, WebhookMarker},
     },
-    misc::HexColor32,
+    misc::HexColor,
     user::flags::PublicUserFlags,
 };
 
@@ -18,7 +18,7 @@ pub struct WebhookUser {
     pub discriminator: String,
     pub global_name: Option<String>,
     pub avatar: Option<String>,
-    pub avatar_color: Option<HexColor32>,
+    pub avatar_color: Option<HexColor>,
     pub flags: PublicUserFlags,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bot: Option<bool>,

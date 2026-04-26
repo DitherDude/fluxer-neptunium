@@ -3,9 +3,9 @@ use serde::{Deserialize, Serialize};
 /// A hexadecimal color represented as a `u32`. Colors in the API are usually represented by numbers.
 #[derive(Serialize, Deserialize, Copy, Clone, Debug)]
 #[serde(transparent)]
-pub struct HexColor32(u32);
+pub struct HexColor(u32);
 
-impl HexColor32 {
+impl HexColor {
     #[must_use]
     pub fn new(value: u32) -> Self {
         Self(value)
