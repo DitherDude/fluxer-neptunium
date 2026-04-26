@@ -4,6 +4,7 @@ mod guild_role_payloads;
 mod message_events;
 mod ready;
 mod request_guild_members;
+mod typing_start;
 
 use std::sync::Arc;
 
@@ -13,6 +14,7 @@ pub use guild_role_payloads::*;
 pub use message_events::*;
 pub use ready::*;
 pub use request_guild_members::*;
+pub use typing_start::*;
 
 use crate::Cache;
 

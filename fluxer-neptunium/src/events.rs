@@ -6,7 +6,8 @@ use neptunium_cache_inmemory::{
     Cached, CachedChannel, CachedMessage,
     gateway::cached_payload::{
         CachedGuildCreate, CachedGuildMemberListUpdate, CachedGuildMembersChunk,
-        CachedGuildRoleUpdateBulk, CachedMessageCreate, CachedReady,
+        CachedGuildRoleUpdateBulk, CachedMessageCreate, CachedMessageReactionAdd,
+        CachedMessageReactionRemove, CachedReady, CachedTypingStart,
     },
 };
 use neptunium_model::{
@@ -15,10 +16,10 @@ use neptunium_model::{
         ChannelRecipientAdd, ChannelRecipientRemove, ChannelUpdateBulk, FavoriteMemeDelete,
         GuildAuditLogEntryCreate, GuildBanAdd, GuildBanRemove, GuildDelete, GuildEmojisUpdate,
         GuildMemberRemove, GuildRoleDelete, GuildStickersUpdate, InviteDelete, MessageAck,
-        MessageDelete, MessageDeleteBulk, MessageReactionAdd, MessageReactionRemove,
-        MessageReactionRemoveAll, MessageReactionRemoveEmoji, PresenceUpdateIncoming,
-        RecentMentionDelete, RelationshipRemove, Resumed, SavedMessageDelete, TypingStart,
-        UserNoteUpdate, UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
+        MessageDelete, MessageDeleteBulk, MessageReactionRemoveAll, MessageReactionRemoveEmoji,
+        PresenceUpdateIncoming, RecentMentionDelete, RelationshipRemove, Resumed,
+        SavedMessageDelete, UserNoteUpdate, UserPrivateResponse, VoiceServerUpdate,
+        VoiceStateUpdate, WebhooksUpdate,
     },
     guild::{Guild, member::GuildMember, permissions::GuildRole},
     id::{Id, marker::ChannelMarker},
@@ -335,14 +336,14 @@ pub trait EventHandler: Send {
     async fn on_message_reaction_add(
         &self,
         ctx: Context,
-        data: Arc<MessageReactionAdd>,
+        data: Arc<CachedMessageReactionAdd>,
     ) -> Result<(), EventError> {
         Ok(())
     }
     async fn on_message_reaction_remove(
         &self,
         ctx: Context,
-        data: Arc<MessageReactionRemove>,
+        data: Arc<CachedMessageReactionRemove>,
     ) -> Result<(), EventError> {
         Ok(())
     }
@@ -366,7 +367,7 @@ pub trait EventHandler: Send {
     async fn on_typing_start(
         &self,
         ctx: Context,
-        data: Arc<TypingStart>,
+        data: Arc<CachedTypingStart>,
     ) -> Result<(), EventError> {
         Ok(())
     }

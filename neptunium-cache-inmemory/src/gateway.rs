@@ -9,9 +9,8 @@ use neptunium_model::{
             FavoriteMemeDelete, GuildAuditLogEntryCreate, GuildBanAdd, GuildBanRemove, GuildDelete,
             GuildEmojisUpdate, GuildMemberRemove, GuildRoleCreate, GuildRoleDelete,
             GuildStickersUpdate, InviteDelete, MessageAck, MessageDelete, MessageDeleteBulk,
-            MessageReactionAdd, MessageReactionRemove, MessageReactionRemoveAll,
-            MessageReactionRemoveEmoji, PresenceUpdateIncoming, RecentMentionDelete,
-            RelationshipRemove, Resumed, SavedMessageDelete, TypingStart, UserNoteUpdate,
+            MessageReactionRemoveAll, MessageReactionRemoveEmoji, PresenceUpdateIncoming,
+            RecentMentionDelete, RelationshipRemove, Resumed, SavedMessageDelete, UserNoteUpdate,
             UserPrivateResponse, VoiceServerUpdate, VoiceStateUpdate, WebhooksUpdate,
         },
     },
@@ -28,7 +27,8 @@ use crate::{
     Cache, CacheValue, Cached, CachedChannel, CachedMessage,
     gateway::cached_payload::{
         CachedGuildCreate, CachedGuildMemberListUpdate, CachedGuildMembersChunk,
-        CachedGuildRoleUpdateBulk, CachedMessageCreate, CachedPayload, CachedReady,
+        CachedGuildRoleUpdateBulk, CachedMessageCreate, CachedMessageReactionAdd,
+        CachedMessageReactionRemove, CachedPayload, CachedReady, CachedTypingStart,
     },
 };
 
@@ -161,11 +161,13 @@ impl CachedDispatchEvent {
             DispatchEvent::MessageDeleteBulk(payload) => {
                 CachedDispatchEvent::MessageDeleteBulk(payload)
             }
-            DispatchEvent::MessageReactionAdd(payload) => {
-                CachedDispatchEvent::MessageReactionAdd(payload)
-            }
+            DispatchEvent::MessageReactionAdd(payload) => CachedDispatchEvent::MessageReactionAdd(
+                CachedMessageReactionAdd::cache_payload(payload, cache),
+            ),
             DispatchEvent::MessageReactionRemove(payload) => {
-                CachedDispatchEvent::MessageReactionRemove(payload)
+                CachedDispatchEvent::MessageReactionRemove(
+                    CachedMessageReactionRemove::cache_payload(payload, cache),
+                )
             }
             DispatchEvent::MessageReactionRemoveAll(payload) => {
                 CachedDispatchEvent::MessageReactionRemoveAll(payload)
@@ -174,7 +176,9 @@ impl CachedDispatchEvent {
                 CachedDispatchEvent::MessageReactionRemoveEmoji(payload)
             }
             DispatchEvent::MessageAck(payload) => CachedDispatchEvent::MessageAck(payload),
-            DispatchEvent::TypingStart(payload) => CachedDispatchEvent::TypingStart(payload),
+            DispatchEvent::TypingStart(payload) => {
+                CachedDispatchEvent::TypingStart(CachedTypingStart::cache_payload(payload, cache))
+            }
             DispatchEvent::WebhooksUpdate(payload) => CachedDispatchEvent::WebhooksUpdate(payload),
             DispatchEvent::InviteCreate(payload) => CachedDispatchEvent::InviteCreate(payload),
             DispatchEvent::InviteDelete(payload) => CachedDispatchEvent::InviteDelete(payload),
@@ -266,12 +270,12 @@ pub enum CachedDispatchEvent {
     MessageUpdate(Cached<CachedMessage>),
     MessageDelete(MessageDelete),
     MessageDeleteBulk(MessageDeleteBulk),
-    MessageReactionAdd(MessageReactionAdd),
-    MessageReactionRemove(MessageReactionRemove),
+    MessageReactionAdd(CachedMessageReactionAdd),
+    MessageReactionRemove(CachedMessageReactionRemove),
     MessageReactionRemoveAll(MessageReactionRemoveAll),
     MessageReactionRemoveEmoji(MessageReactionRemoveEmoji),
     MessageAck(MessageAck),
-    TypingStart(TypingStart),
+    TypingStart(CachedTypingStart),
     /// Sent when a guild channel webhooks is created, updated, or deleted.
     /// Indicates that webhooks for the channel should be re-fetched.
     WebhooksUpdate(WebhooksUpdate),
