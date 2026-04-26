@@ -22,11 +22,13 @@ use crate::{
 pub mod audit_log;
 pub mod bans;
 pub mod default_message_notification_level;
+mod emoji;
 pub mod explicit_content_filter;
 pub mod member;
 pub mod permissions;
 pub mod properties;
 pub mod webhook;
+pub use emoji::*;
 
 // Source: https://github.com/fluxerapp/fluxer/blob/5da26d4ed5ef9f3fe8bef993c0f10ea4f4ee9c1d/packages/schema/src/domains/guild/GuildResponseSchemas.tsx#L95
 #[derive(Deserialize, Clone, Debug)]

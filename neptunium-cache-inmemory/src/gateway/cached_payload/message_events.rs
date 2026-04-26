@@ -2,10 +2,10 @@ use std::ops::{Deref, DerefMut};
 
 use neptunium_model::{
     channel::ChannelType,
-    gateway::payload::{
-        incoming::{MessageCreate, MessageDelete, MessageReactionAdd, MessageReactionRemove},
-        outgoing::Emoji,
+    gateway::payload::incoming::{
+        MessageCreate, MessageDelete, MessageReactionAdd, MessageReactionRemove,
     },
+    guild::Emoji,
     id::{
         Id,
         marker::{ChannelMarker, GuildMarker, MessageMarker, UserMarker},

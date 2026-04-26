@@ -19,10 +19,8 @@ use crate::{client::error::Error, events::context::Context};
 use neptunium_http::endpoints::channel::{
     AddReaction, CreateMessage, CreateMessageBody, DeleteAllReactions, DeleteAllReactionsOfEmoji,
     DeleteMessage, DeleteMessageAttachment, DeleteOwnReaction, DeleteReaction, EditMessage,
-    EditMessageBody, FetchMessage, PinMessage, UnpinMessage,
+    EditMessageBody, FetchMessage, PinMessage, Reaction, UnpinMessage,
 };
-
-pub use neptunium_http::endpoints::channel::RequestReactionType as Reaction;
 
 // TODO: Many methods in MessageExt could be implemented for Id<MessageMarker> too:
 // Should make those functions be in MessageIdExt and impl MessageIdExt for Message.

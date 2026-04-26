@@ -14,7 +14,7 @@ use reqwest::Method;
 use crate::{endpoints::Endpoint, request::Request};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum RequestReactionType {
+pub enum Reaction {
     Custom {
         id: Id<EmojiMarker>,
         /// Name of the custom emoji.
@@ -24,7 +24,7 @@ pub enum RequestReactionType {
     Unicode(String),
 }
 
-impl Display for RequestReactionType {
+impl Display for Reaction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Custom { id, name } => {
@@ -43,11 +43,32 @@ impl Display for RequestReactionType {
     }
 }
 
+impl From<&str> for Reaction {
+    fn from(value: &str) -> Self {
+        Self::from(value.to_owned())
+    }
+}
+
+impl From<String> for Reaction {
+    fn from(value: String) -> Self {
+        Self::Unicode(value)
+    }
+}
+
+impl From<Id<EmojiMarker>> for Reaction {
+    fn from(value: Id<EmojiMarker>) -> Self {
+        Self::Custom {
+            id: value,
+            name: None,
+        }
+    }
+}
+
 #[derive(Builder, Clone, Debug)]
 pub struct ListReactions {
     pub channel_id: Id<ChannelMarker>,
     pub message_id: Id<MessageMarker>,
-    pub emoji: RequestReactionType,
+    pub emoji: Reaction,
 }
 
 impl Endpoint for ListReactions {
@@ -67,7 +88,7 @@ impl Endpoint for ListReactions {
 pub struct AddReaction {
     pub channel_id: Id<ChannelMarker>,
     pub message_id: Id<MessageMarker>,
-    pub reaction: RequestReactionType,
+    pub reaction: Reaction,
 }
 
 impl Endpoint for AddReaction {
@@ -88,7 +109,7 @@ impl Endpoint for AddReaction {
 pub struct DeleteOwnReaction {
     pub channel_id: Id<ChannelMarker>,
     pub message_id: Id<MessageMarker>,
-    pub reaction: RequestReactionType,
+    pub reaction: Reaction,
 }
 
 impl Endpoint for DeleteOwnReaction {
@@ -110,7 +131,7 @@ impl Endpoint for DeleteOwnReaction {
 pub struct DeleteReaction {
     pub channel_id: Id<ChannelMarker>,
     pub message_id: Id<MessageMarker>,
-    pub reaction: RequestReactionType,
+    pub reaction: Reaction,
     pub target: Id<UserMarker>,
 }
 
@@ -133,7 +154,7 @@ impl Endpoint for DeleteReaction {
 pub struct DeleteAllReactionsOfEmoji {
     pub channel_id: Id<ChannelMarker>,
     pub message_id: Id<MessageMarker>,
-    pub reaction: RequestReactionType,
+    pub reaction: Reaction,
 }
 
 impl Endpoint for DeleteAllReactionsOfEmoji {
