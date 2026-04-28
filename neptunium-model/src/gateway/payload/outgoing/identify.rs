@@ -3,12 +3,8 @@ use bon::Builder;
 use serde_repr::{Deserialize_repr, Serialize_repr};
 use zeroize::Zeroizing;
 
-use crate::{
-    gateway::{
-        intents::GatewayEventFlags, payload::outgoing::PresenceUpdateOutgoing, shard::ShardInfo,
-    },
-    guild::Emoji,
-    id::{Id, marker::ApplicationMarker},
+use crate::gateway::{
+    intents::GatewayEventFlags, payload::outgoing::PresenceUpdateOutgoing, shard::ShardInfo,
 };
 
 #[derive(Serialize_repr, Deserialize_repr, Copy, Clone, Debug)]
@@ -114,6 +110,8 @@ pub struct ActivityButton {
     pub url: String,
 }
 
+// Activities don't exist yet.
+/*
 /// Bot users are only able to set `name`, `state`, `type`, and `url`.
 #[derive(serde::Serialize, serde::Deserialize, Debug, Clone, Builder)]
 pub struct Activity {
@@ -160,6 +158,7 @@ pub struct Activity {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub buttons: Option<Vec<ActivityButton>>,
 }
+*/
 
 // TODO: This has more (optional) fields when logging in as a user
 #[derive(serde::Serialize, Clone, Debug, Builder)]
