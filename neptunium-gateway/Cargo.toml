@@ -19,7 +19,7 @@ futures-util = { version = "0.3.34", default-features = false, features = [
     "sink",
     "std",
 ] }
-tokio = { version = "1.53.1", features = ["net", "time"] }
+tokio = { version = "1.53.1", features = ["net", "time", "macros"] }
 zeroize = "1.9.0"
 tracing = "0.1.44"
 serde_path_to_error = "0.1.20"
