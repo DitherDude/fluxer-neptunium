@@ -41,7 +41,7 @@ pub struct PartialUser {
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug)]
-pub struct MicroUser {
+pub struct UserIDObject {
     pub id: Id<UserMarker>,
 }
 

@@ -1,13 +1,13 @@
 use serde::{Deserialize, Serialize};
 
-use crate::{gateway::presence::CustomStatus, user::MicroUser};
+use crate::{gateway::presence::CustomStatus, user::UserIDObject};
 
 /// User presence was updated. Sent when a friend’s or group DM member’s status changes.
 ///
 /// Dispatched to users who are subscribed to the target user’s presence (friends, group DM members).
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PresenceUpdateIncoming {
-    pub user: MicroUser,
+    pub user: UserIDObject,
     /// User's current status.
     pub status: String,
     pub mobile: bool,
